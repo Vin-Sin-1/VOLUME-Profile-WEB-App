@@ -359,6 +359,127 @@
         white-space: nowrap;
       }
 
+      .time-control {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .time-tabs {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .time-tab {
+        flex: 1;
+        padding: 6px 10px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          color 0.2s ease;
+      }
+
+      .time-tab.active {
+        background: var(--panel-strong);
+        color: var(--text);
+      }
+
+      .time-tab:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .duration-row {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .adj-btn {
+        width: 36px;
+        height: 36px;
+        background: var(--panel-strong);
+        border: none;
+        border-radius: 0;
+        color: var(--text);
+        font-size: 18px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s ease;
+      }
+
+      .adj-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .dur-display {
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        font-family: monospace;
+        padding: 0 8px;
+        user-select: none;
+      }
+
+      .time-range-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 5px 10px;
+      }
+
+      .time-input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+        font-family: monospace;
+        padding: 3px 4px;
+        width: 46px;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+
+      .time-input:focus {
+        border-bottom-color: var(--purple);
+      }
+
+      .time-input.invalid {
+        color: var(--red);
+        border-bottom-color: var(--red);
+      }
+
+      .time-arrow {
+        color: var(--muted);
+        font-size: 14px;
+        flex-shrink: 0;
+        user-select: none;
+      }
+
       .tooltip-card {
         background: var(--panel);
         border: 1px solid var(--border);
@@ -434,80 +555,6 @@
         ES: { label: "ES", pattern: "ES%", bucketSize: 1.2 },
       };
 
-      const windows = [
-        {
-          id: "1h",
-          label: "1h",
-          getStart: () => new Date(Date.now() - 1 * 3600 * 1000),
-          pretty: "Last 1h",
-        },
-        {
-          id: "2h",
-          label: "2h",
-          getStart: () => new Date(Date.now() - 2 * 3600 * 1000),
-          pretty: "Last 2h",
-        },
-        {
-          id: "3h",
-          label: "3h",
-          getStart: () => new Date(Date.now() - 3 * 3600 * 1000),
-          pretty: "Last 3h",
-        },
-        {
-          id: "4h",
-          label: "4h",
-          getStart: () => new Date(Date.now() - 4 * 3600 * 1000),
-          pretty: "Last 4h",
-        },
-        {
-          id: "5h",
-          label: "5h",
-          getStart: () => new Date(Date.now() - 5 * 3600 * 1000),
-          pretty: "Last 5h",
-        },
-        {
-          id: "london",
-          label: "London",
-          getStart: () => {
-            const now = new Date();
-            const start = new Date(
-              Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate(),
-                8,
-                0,
-                0,
-              ),
-            );
-            return start > now
-              ? new Date(start.getTime() - 24 * 3600 * 1000)
-              : start;
-          },
-          pretty: "London",
-        },
-        {
-          id: "ny",
-          label: "NY",
-          getStart: () => {
-            const now = new Date();
-            const start = new Date(
-              Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate(),
-                13,
-                30,
-                0,
-              ),
-            );
-            return start > now
-              ? new Date(start.getTime() - 24 * 3600 * 1000)
-              : start;
-          },
-          pretty: "NY",
-        },
-      ];
 
       const SAMPLE_META = {
         instrument: "GC JUN26",
@@ -871,7 +918,10 @@
       const state = {
         instrument: "GC",
         mode: "VOL",
-        windowId: "4h",
+        inputMode: "duration",
+        durationMinutes: 240,
+        manualStart: "09:00",
+        manualEnd: "17:30",
         profile: SAMPLE_PROFILE,
         meta: SAMPLE_META,
         sessionLabel: "",
@@ -896,11 +946,61 @@
         }).format(date);
       }
 
-      function getWindow(start) {
-        const end = new Date();
-        const windowDef =
-          windows.find((w) => w.id === state.windowId) || windows[3];
-        return `${windowDef.pretty} ${formatStockholm(start)}–${formatStockholm(end)}`;
+      function formatDuration(minutes) {
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return `${h}h ${String(m).padStart(2, "0")}m`;
+      }
+
+      function parseStockholmTime(hhmm) {
+        const parts = hhmm.split(":");
+        if (parts.length !== 2) return new Date();
+        const hh = parseInt(parts[0], 10);
+        const mm = parseInt(parts[1], 10);
+        if (isNaN(hh) || isNaN(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59)
+          return new Date();
+        const now = new Date();
+        const dateStr = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Europe/Stockholm",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(now);
+        // Determine Stockholm UTC offset by probing noon UTC
+        const probeUTC = new Date(`${dateStr}T12:00:00Z`);
+        const stkHour = parseInt(
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: "Europe/Stockholm",
+            hour: "2-digit",
+            hour12: false,
+          }).format(probeUTC),
+        );
+        const offsetHours = stkHour - 12; // +1 (winter) or +2 (summer)
+        const [y, mo, d] = dateStr.split("-").map(Number);
+        return new Date(Date.UTC(y, mo - 1, d, hh - offsetHours, mm, 0, 0));
+      }
+
+      function getStartTime() {
+        if (state.inputMode === "duration") {
+          return new Date(Date.now() - state.durationMinutes * 60 * 1000);
+        }
+        return parseStockholmTime(state.manualStart);
+      }
+
+      function getCutoffTime() {
+        if (state.inputMode === "duration") {
+          return new Date();
+        }
+        return parseStockholmTime(state.manualEnd);
+      }
+
+      function getSessionLabel() {
+        const start = getStartTime();
+        const end = getCutoffTime();
+        if (state.inputMode === "duration") {
+          return `${formatDuration(state.durationMinutes)} · ${formatStockholm(start)}–${formatStockholm(end)}`;
+        }
+        return `${state.manualStart}–${state.manualEnd} Stockholm`;
       }
 
       function formatNumber(value) {
@@ -1122,8 +1222,7 @@
       }
 
       function render() {
-        const start = windows.find((w) => w.id === state.windowId).getStart();
-        state.sessionLabel = getWindow(start);
+        state.sessionLabel = getSessionLabel();
         const summary = computeSummary(state.profile, state.meta);
         const activeRow =
           state.hoveredBucket !== null
@@ -1160,14 +1259,24 @@
                 )
                 .join("")}
             </div>
-            <div class="selector-group" role="group" aria-label="Windows">
-              ${windows
-                .map(
-                  (win) => `
-                <button class="${state.windowId === win.id ? "active" : ""}" data-window="${win.id}">${win.label}</button>
-              `,
-                )
-                .join("")}
+            <div class="time-control">
+              <div class="time-tabs" role="group" aria-label="Time input mode">
+                <button class="time-tab ${state.inputMode === "duration" ? "active" : ""}" data-input-mode="duration">Duration</button>
+                <button class="time-tab ${state.inputMode === "time" ? "active" : ""}" data-input-mode="time">Time</button>
+              </div>
+              ${state.inputMode === "duration" ? `
+              <div class="duration-row">
+                <button class="adj-btn" data-action="dur-minus">−</button>
+                <span class="dur-display">${formatDuration(state.durationMinutes)}</span>
+                <button class="adj-btn" data-action="dur-plus">+</button>
+              </div>
+              ` : `
+              <div class="time-range-row">
+                <input class="time-input" type="text" inputmode="numeric" data-field="manualStart" value="${state.manualStart}" placeholder="HH:MM" maxlength="5" />
+                <span class="time-arrow">→</span>
+                <input class="time-input" type="text" inputmode="numeric" data-field="manualEnd" value="${state.manualEnd}" placeholder="HH:MM" maxlength="5" />
+              </div>
+              `}
             </div>
             <button class="refresh-button" data-action="refresh" ${state.loading ? "disabled" : ""}>${state.loading ? "Refreshing…" : "Refresh"}</button>
           </div>
@@ -1244,12 +1353,55 @@
           });
         });
 
-        app.querySelectorAll("[data-window]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.windowId = button.dataset.window;
+        app.querySelectorAll("[data-input-mode]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.inputMode = btn.dataset.inputMode;
             state.activeBucket = null;
-            loadProfile();
             render();
+            loadProfile();
+          });
+        });
+
+        const durMinus = app.querySelector('[data-action="dur-minus"]');
+        const durPlus = app.querySelector('[data-action="dur-plus"]');
+        if (durMinus) {
+          durMinus.addEventListener("click", () => {
+            state.durationMinutes = Math.max(30, state.durationMinutes - 30);
+            render();
+            loadProfile();
+          });
+        }
+        if (durPlus) {
+          durPlus.addEventListener("click", () => {
+            state.durationMinutes = Math.min(1440, state.durationMinutes + 30);
+            render();
+            loadProfile();
+          });
+        }
+
+        app.querySelectorAll(".time-input").forEach((input) => {
+          input.addEventListener("input", () => {
+            let val = input.value.replace(/[^0-9:]/g, "");
+            if (/^\d{4}$/.test(val)) {
+              val = val.slice(0, 2) + ":" + val.slice(2);
+              input.value = val;
+            }
+            const valid = /^\d{2}:\d{2}$/.test(val);
+            input.classList.toggle("invalid", val.length > 0 && !valid);
+          });
+          input.addEventListener("blur", () => {
+            const val = input.value.trim();
+            const field = input.dataset.field;
+            if (/^\d{2}:\d{2}$/.test(val)) {
+              input.classList.remove("invalid");
+              if (state[field] !== val) {
+                state[field] = val;
+                loadProfile();
+              }
+            } else {
+              input.value = state[field];
+              input.classList.remove("invalid");
+            }
           });
         });
 
@@ -1291,9 +1443,8 @@
         }
 
         const instrument = instruments[state.instrument];
-        const windowDef = windows.find((w) => w.id === state.windowId);
-        const startTime = windowDef.getStart();
-        const cutoffTime = new Date();
+        const startTime = getStartTime();
+        const cutoffTime = getCutoffTime();
 
         try {
           const { data, error } = await supabase.rpc("get_volume_profile", {
