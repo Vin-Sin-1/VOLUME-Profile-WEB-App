@@ -1,0 +1,17 @@
+{
+  "name": "VSA Renko",
+  "short_name": "VSA",
+  "start_url": "/vsa-mobile-dashboard/",
+  "display": "standalone",
+  "background_color": "#090b0f",
+  "theme_color": "#090b0f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/vsa-mobile-dashboard/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

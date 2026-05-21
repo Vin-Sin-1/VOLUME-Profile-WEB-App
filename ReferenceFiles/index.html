@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>VSA</title>
+    <link rel="manifest" href="/vsa-mobile-dashboard/manifest.json" />
+    <meta name="theme-color" content="#090b0f" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="VSA Renko" />
+    <link rel="apple-touch-icon" href="/vsa-mobile-dashboard/icon.svg" />
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      :root {
+        --bg: #090b0f;
+        --bg2: #0f1117;
+        --border: #252d3d;
+        --border2: #2e3a50;
+        --text: #c8d4e8;
+        --text2: #7a8fa8;
+        --accent: #3d8ef0;
+        --header-h: 44px;
+        --tabs-h: 36px;
+        --left-w: 48px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        width: 100%;
+        overflow: hidden;
+      }
+      .header {
+        height: var(--header-h);
+        min-height: var(--header-h);
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .header-logo {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: var(--text2);
+        flex-shrink: 0;
+        padding-right: 6px;
+        border-right: 1px solid var(--border);
+      }
+      .inst-tabs-portrait {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        overflow-x: auto;
+        gap: 3px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .inst-tabs-portrait::-webkit-scrollbar {
+        display: none;
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--border2);
+        flex-shrink: 0;
+        transition:
+          background 0.3s,
+          box-shadow 0.3s;
+      }
+      .status-dot.live {
+        background: #3df07a;
+        box-shadow: 0 0 7px #3df07a;
+      }
+      .unified-tabs {
+        height: 40px;
+        min-height: 40px;
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        overflow-x: auto;
+        flex-shrink: 0;
+        padding: 0 8px;
+        gap: 4px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .unified-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      .tab-sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+        flex-shrink: 0;
+        margin: 0 4px;
+      }
+      .landscape-wrap {
+        display: none;
+        flex: 1;
+        flex-direction: row;
+        overflow: hidden;
+        min-height: 0;
+      }
+      .left-panel {
+        width: var(--left-w);
+        min-width: var(--left-w);
+        background: var(--bg2);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .left-scroll {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 6px 0;
+        gap: 3px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .left-scroll::-webkit-scrollbar {
+        display: none;
+      }
+      .left-sep {
+        width: 28px;
+        height: 1px;
+        background: var(--border);
+        flex-shrink: 0;
+        margin: 4px 0;
+      }
+      .left-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--border2);
+        margin-bottom: 4px;
+        transition:
+          background 0.3s,
+          box-shadow 0.3s;
+      }
+      .left-dot.live {
+        background: #3df07a;
+        box-shadow: 0 0 6px #3df07a;
+      }
+      .tab {
+        height: 28px;
+        min-width: 36px;
+        padding: 0 12px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: #a0b4cc;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: all 0.12s;
+      }
+      .tab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .tab.time {
+        font-size: 10px;
+      }
+      .vtab {
+        width: 36px;
+        height: 28px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text2);
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.12s;
+        flex-shrink: 0;
+      }
+      .vtab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .chart-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        position: relative;
+        min-width: 0;
+      }
+      #price-panel {
+        flex-shrink: 0;
+        min-height: 60px;
+        overflow: hidden;
+      }
+      #volume-panel {
+        flex-shrink: 0;
+        min-height: 40px;
+        overflow: hidden;
+      }
+      .drag-handle {
+        height: 12px;
+        min-height: 12px;
+        background: var(--bg2);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: row-resize;
+        flex-shrink: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+      .grip {
+        width: 22px;
+        height: 2px;
+        background: var(--border2);
+        border-radius: 1px;
+      }
+      .portrait-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+      }
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 20;
+      }
+      .loading-overlay.hidden {
+        display: none;
+      }
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.55s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loading-text {
+        font-size: 10px;
+        color: var(--text2);
+        letter-spacing: 0.12em;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: #3d1515;
+        border: 1px solid #7a2020;
+        color: #ff8080;
+        font-size: 10px;
+        padding: 7px 14px;
+        border-radius: 5px;
+        letter-spacing: 0.06em;
+        transition: transform 0.25s;
+        z-index: 100;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+      @media (orientation: portrait) {
+        #app {
+          flex-direction: column;
+        }
+        .header {
+          display: flex;
+          order: 3;
+          border-top: 1px solid var(--border);
+          border-bottom: none;
+        }
+        .unified-tabs {
+          display: flex;
+          order: 2;
+          border-top: 1px solid var(--border);
+          border-bottom: none;
+        }
+        .portrait-content {
+          display: flex;
+          order: 1;
+          flex: 1;
+        }
+        .landscape-wrap {
+          display: none;
+        }
+      }
+      @media (orientation: landscape) {
+        .header {
+          display: none;
+        }
+        .unified-tabs {
+          display: none;
+        }
+        .portrait-content {
+          display: none;
+        }
+        .landscape-wrap {
+          display: flex;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="header">
+        <div class="header-logo">VSA</div>
+        <div class="inst-tabs-portrait" id="inst-tabs-portrait"></div>
+        <div class="status-dot" id="status-dot-portrait"></div>
+      </div>
+      <div class="unified-tabs" id="unified-tabs"></div>
+      <div class="portrait-content">
+        <div class="chart-area" id="chart-area-portrait">
+          <div id="price-panel"></div>
+          <div class="drag-handle" id="drag-handle">
+            <div class="grip"></div>
+          </div>
+          <div id="volume-panel"></div>
+          <div class="loading-overlay" id="chart-loading">
+            <div class="spinner"></div>
+            <div class="loading-text">LOADING...</div>
+          </div>
+        </div>
+      </div>
+      <div class="landscape-wrap" id="landscape-wrap">
+        <div class="left-panel">
+          <div class="left-scroll" id="left-scroll"></div>
+        </div>
+        <div class="chart-area" id="chart-area-landscape"></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ============================================================
+      // CONFIG
+      // ============================================================
+      const SUPABASE_URL = "https://nyykpszexlxtapbnkxpw.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_1Qv50ww1Krv0_8-Tgtdn-g_ahEOIOoP";
+      const SMA_PERIOD = 26;
+      const BB_PERIOD = 22;
+      const BB_MULT = 2;
+      const VOL_MA_PERIOD = 100;
+      const BARS_TO_LOAD = 500;
+      const BARS_1MIN = 3000;
+      const POLL_MIN_MS = 200;
+
+      const INSTRUMENT_ORDER = [
+        "GC",
+        "CL",
+        "NQ",
+        "ES",
+        "RTY",
+        "ZB",
+        "EUR",
+        "GBP",
+        "JPY",
+        "AUD",
+      ];
+      const LOCAL_OFFSET_SECONDS = -new Date().getTimezoneOffset() * 60;
+
+      const VSA = {
+        Yellow: "#f0c93d",
+        Magenta: "#e040fb",
+        Red: "#f03d3d",
+        White: "#e8edf5",
+        Lime: "#3df07a",
+        Cyan: "#3dd4f0",
+      };
+      function vsaCandleColor(name, isTimechart) {
+        return isTimechart || name !== "Yellow"
+          ? VSA[name] || VSA.Cyan
+          : VSA.Cyan;
+      }
+      function vsaVolColor(name) {
+        return VSA[name] || VSA.Cyan;
+      }
+
+      // ============================================================
+      // SUPABASE HELPERS
+      // ============================================================
+      const HEADERS = {
+        apikey: SUPABASE_KEY,
+        Authorization: "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+      };
+      async function sbGet(path) {
+        const res = await fetch(SUPABASE_URL + path, { headers: HEADERS });
+        if (!res.ok) throw new Error("GET " + res.status);
+        return res.json();
+      }
+      async function sbRpc(fn, params) {
+        const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+          method: "POST",
+          headers: HEADERS,
+          body: JSON.stringify(params),
+        });
+        if (!res.ok) throw new Error("RPC " + res.status);
+        return res.json();
+      }
+
+      // ============================================================
+      // BOLLINGER BANDS CALCULATION
+      // ============================================================
+      // Returns { upper, lower } for bar at index i, or null if not enough bars
+      function calcBB(data, i) {
+        if (i < BB_PERIOD - 1) return null;
+        let sum = 0;
+        for (let j = i - BB_PERIOD + 1; j <= i; j++) sum += +data[j].close;
+        const mean = sum / BB_PERIOD;
+        let variance = 0;
+        for (let j = i - BB_PERIOD + 1; j <= i; j++) {
+          const diff = +data[j].close - mean;
+          variance += diff * diff;
+        }
+        const stddev = Math.sqrt(variance / BB_PERIOD);
+        return {
+          upper: mean + BB_MULT * stddev,
+          lower: mean - BB_MULT * stddev,
+        };
+      }
+
+      // ============================================================
+      // STATE
+      // ============================================================
+      let instruments = [],
+        allSizes = {},
+        allTimeframes = {};
+      let currentInst = null,
+        currentType = null,
+        currentSize = null;
+      let rows = [],
+        lastBarIndex = -1,
+        isTimechart = false;
+      let pollTimer = null,
+        pollActive = false;
+      let priceChart = null,
+        volChart = null;
+      let candleSeries = null,
+        smaSeries = null,
+        bbUpperSeries = null,
+        bbLowerSeries = null;
+      let volSeries = null,
+        volMaSeries = null;
+      let pricePanelH = 0,
+        volPanelH = 0,
+        isLandscape = false;
+      let lastRenderedTime = 0;
+      let timeToIdx = {};
+
+      // ============================================================
+      // INIT
+      // ============================================================
+      async function init() {
+        checkOrientation();
+        initPanelContainers();
+        initDragHandle();
+        window.addEventListener("resize", onResize);
+        await loadMeta();
+      }
+
+      // ============================================================
+      // META
+      // ============================================================
+      async function loadMeta() {
+        try {
+          const [r1, r2, r3] = await Promise.all([
+            sbGet("/rest/v1/renko_instruments?select=instrument"),
+            sbGet("/rest/v1/renko_sizes?select=instrument,brick_size"),
+            sbGet("/rest/v1/time_bar_sizes?select=instrument,timeframe"),
+          ]);
+          allSizes = {};
+          for (const r of r2) {
+            if (!allSizes[r.instrument]) allSizes[r.instrument] = [];
+            allSizes[r.instrument].push(r.brick_size);
+          }
+          for (const k of Object.keys(allSizes))
+            allSizes[k].sort((a, b) => a - b);
+          allTimeframes = {};
+          for (const r of r3) {
+            if (!allTimeframes[r.instrument]) allTimeframes[r.instrument] = [];
+            allTimeframes[r.instrument].push(r.timeframe);
+          }
+          for (const k of Object.keys(allTimeframes))
+            allTimeframes[k].sort((a, b) => a - b);
+          instruments = r1.map((r) => r.instrument);
+          instruments.sort((a, b) => {
+            const ra = a.split(" ")[0],
+              rb = b.split(" ")[0];
+            const ia = INSTRUMENT_ORDER.indexOf(ra),
+              ib = INSTRUMENT_ORDER.indexOf(rb);
+            if (ia === -1 && ib === -1) return a.localeCompare(b);
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+          });
+          if (instruments.length > 0) await selectInstrument(instruments[0]);
+        } catch (e) {
+          showToast("Connection failed");
+          console.error(e);
+        }
+      }
+
+      async function selectInstrument(inst) {
+        if (inst === currentInst) return;
+        currentInst = inst;
+        const sizes = allSizes[inst] || [],
+          tfs = allTimeframes[inst] || [];
+        if (sizes.length > 0) {
+          currentType = "renko";
+          currentSize = sizes[0];
+        } else if (tfs.length > 0) {
+          currentType = "time";
+          currentSize = tfs[0];
+        }
+        renderTabs();
+        await loadAndRender();
+      }
+
+      async function selectChart(type, size) {
+        currentType = type;
+        currentSize = size;
+        renderTabs();
+        await loadAndRender();
+      }
+
+      // ============================================================
+      // LOAD + RENDER
+      // ============================================================
+      async function loadAndRender() {
+        stopPoll();
+        showChartLoading(true);
+        isTimechart = currentType === "time";
+        try {
+          const limit = currentType === "time" ? BARS_1MIN : BARS_TO_LOAD;
+          if (currentType === "renko") {
+            rows = await sbGet(
+              "/rest/v1/renko_bricks?instrument=eq." +
+                encodeURIComponent(currentInst) +
+                "&brick_size=eq." +
+                currentSize +
+                "&order=bar_index.desc&limit=" +
+                limit,
+            );
+            rows.reverse();
+          } else {
+            rows = await sbGet(
+              "/rest/v1/time_bars?instrument=eq." +
+                encodeURIComponent(currentInst) +
+                "&timeframe=eq." +
+                currentSize +
+                "&order=bar_index.desc&limit=" +
+                limit,
+            );
+            rows.reverse();
+          }
+          rows = rows || [];
+          lastBarIndex = rows.length > 0 ? rows[rows.length - 1].bar_index : -1;
+          buildCharts();
+        } catch (e) {
+          showToast("Failed to load");
+          console.error(e);
+        }
+        showChartLoading(false);
+        startPoll();
+      }
+
+      // ============================================================
+      // POLLING
+      // ============================================================
+      function startPoll() {
+        pollActive = true;
+        schedulePoll();
+      }
+      function stopPoll() {
+        pollActive = false;
+        if (pollTimer) {
+          clearTimeout(pollTimer);
+          pollTimer = null;
+        }
+      }
+      function schedulePoll() {
+        if (!pollActive) return;
+        pollTimer = setTimeout(doPoll, POLL_MIN_MS);
+      }
+
+      async function doPoll() {
+        if (!pollActive) return;
+        const t0 = Date.now();
+        try {
+          let newRows;
+          if (currentType === "renko") {
+            newRows = await sbRpc("get_new_renko_bars", {
+              p_instrument: currentInst,
+              p_brick_size: currentSize,
+              p_since: lastBarIndex,
+            });
+          } else {
+            newRows = await sbRpc("get_new_time_bars", {
+              p_instrument: currentInst,
+              p_timeframe: currentSize,
+              p_since: lastBarIndex,
+            });
+          }
+          if (newRows && newRows.length > 0) {
+            setLive(true);
+            for (const r of newRows) rows.push(r);
+            lastBarIndex = rows[rows.length - 1].bar_index;
+            if (newRows.length === 1) appendBar(newRows[0]);
+            else rebuildSeriesData();
+          }
+        } catch (e) {
+          setLive(false);
+          console.error("Poll:", e);
+        }
+        const wait = Math.max(0, POLL_MIN_MS - (Date.now() - t0));
+        if (pollActive) pollTimer = setTimeout(doPoll, wait);
+      }
+
+      function rowTime(r) {
+        return parseTime(
+          isTimechart ? r.bar_start_time : r.fixed_time || r.bar_start_time,
+        );
+      }
+
+      // ============================================================
+      // BUILD CHARTS
+      // ============================================================
+      function destroyCharts() {
+        if (priceChart) {
+          priceChart.remove();
+          priceChart = null;
+        }
+        if (volChart) {
+          volChart.remove();
+          volChart = null;
+        }
+        candleSeries =
+          smaSeries =
+          bbUpperSeries =
+          bbLowerSeries =
+          volSeries =
+          volMaSeries =
+            null;
+      }
+
+      function buildCharts() {
+        destroyCharts();
+        if (rows.length === 0) return;
+        const priceEl = document.getElementById("price-panel");
+        const volEl = document.getElementById("volume-panel");
+
+        const layout = {
+          background: { color: "#090b0f" },
+          textColor: "#8a9fc0",
+          fontFamily: "'SF Mono','Fira Code',monospace",
+          fontSize: 10,
+        };
+        const grid = {
+          vertLines: { color: "#0c0f14" },
+          horzLines: { color: "#0c0f14" },
+        };
+        const cross = {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: {
+            color: "#a0c4ffcc",
+            width: 1,
+            style: 0,
+            labelBackgroundColor: "#1a2540",
+          },
+          horzLine: {
+            color: "#a0c4ffcc",
+            width: 1,
+            style: 0,
+            labelBackgroundColor: "#1a2540",
+          },
+        };
+
+        priceChart = LightweightCharts.createChart(priceEl, {
+          width: priceEl.clientWidth,
+          height: priceEl.clientHeight,
+          layout,
+          grid,
+          crosshair: cross,
+          rightPriceScale: { borderColor: "#161a23" },
+          timeScale: {
+            borderColor: "#161a23",
+            timeVisible: true,
+            secondsVisible: false,
+          },
+          handleScroll: true,
+          handleScale: true,
+        });
+
+        candleSeries = priceChart.addCandlestickSeries({
+          upColor: VSA.Cyan,
+          downColor: VSA.Cyan,
+          borderUpColor: VSA.Cyan,
+          borderDownColor: VSA.Cyan,
+          wickUpColor: VSA.Cyan,
+          wickDownColor: VSA.Cyan,
+        });
+        smaSeries = priceChart.addLineSeries({
+          color: "#f09a3d",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        bbUpperSeries = priceChart.addLineSeries({
+          color: "#5a6a8a",
+          lineWidth: 1,
+          lineStyle: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        bbLowerSeries = priceChart.addLineSeries({
+          color: "#5a6a8a",
+          lineWidth: 1,
+          lineStyle: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+
+        volChart = LightweightCharts.createChart(volEl, {
+          width: volEl.clientWidth,
+          height: volEl.clientHeight,
+          layout,
+          grid,
+          crosshair: {
+            ...cross,
+            horzLine: { visible: false, labelVisible: false },
+          },
+          rightPriceScale: {
+            borderColor: "#161a23",
+            scaleMargins: { top: 0.1, bottom: 0.0 },
+          },
+          timeScale: {
+            borderColor: "#161a23",
+            timeVisible: true,
+            secondsVisible: false,
+          },
+          handleScroll: true,
+          handleScale: true,
+        });
+        volSeries = volChart.addHistogramSeries({
+          priceScaleId: "right",
+          priceLineVisible: false,
+          lastValueVisible: true,
+        });
+        volMaSeries = volChart.addLineSeries({
+          color: "#f09a3d",
+          lineWidth: 1,
+          priceScaleId: "right",
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+
+        timeToIdx = {};
+        const candles = [],
+          smaArr = [],
+          bbUpArr = [],
+          bbLoArr = [],
+          volArr = [],
+          volMaArr = [];
+        let lastT = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          const col = vsaCandleColor(r.vsa_color, isTimechart);
+          const vc = vsaVolColor(r.vsa_color);
+          let t = rowTime(r);
+          if (t <= lastT) t = lastT + 1;
+          lastT = t;
+          timeToIdx[+t] = i;
+          candles.push({
+            time: t,
+            open: +r.open,
+            high: +r.high,
+            low: +r.low,
+            close: +r.close,
+            color: col,
+            borderColor: col,
+            wickColor: col,
+          });
+          if (i >= SMA_PERIOD - 1) {
+            let s = 0;
+            for (let j = i - SMA_PERIOD + 1; j <= i; j++) s += +rows[j].close;
+            smaArr.push({ time: t, value: s / SMA_PERIOD });
+          }
+          const bb = calcBB(rows, i);
+          if (bb) {
+            bbUpArr.push({ time: t, value: bb.upper });
+            bbLoArr.push({ time: t, value: bb.lower });
+          }
+          volArr.push({ time: t, value: +r.volume, color: vc });
+          if (i >= VOL_MA_PERIOD - 1) {
+            let s = 0;
+            for (let j = i - VOL_MA_PERIOD + 1; j <= i; j++)
+              s += +rows[j].volume;
+            volMaArr.push({ time: t, value: s / VOL_MA_PERIOD });
+          }
+        }
+
+        lastRenderedTime = lastT;
+        candleSeries.setData(candles);
+        smaSeries.setData(smaArr);
+        bbUpperSeries.setData(bbUpArr);
+        bbLowerSeries.setData(bbLoArr);
+        volSeries.setData(volArr);
+        volMaSeries.setData(volMaArr);
+
+        let syncing = false;
+        priceChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+          if (syncing || !range) return;
+          syncing = true;
+          volChart.timeScale().setVisibleLogicalRange(range);
+          syncing = false;
+        });
+        volChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+          if (syncing || !range) return;
+          syncing = true;
+          priceChart.timeScale().setVisibleLogicalRange(range);
+          syncing = false;
+        });
+
+        let crossSyncing = false;
+        priceChart.subscribeCrosshairMove((param) => {
+          if (crossSyncing || !volSeries) return;
+          crossSyncing = true;
+          if (!param.time) {
+            volChart.clearCrosshairPosition();
+          } else {
+            const candleData =
+              param.seriesData && param.seriesData.get(candleSeries);
+            if (candleData) {
+              const idx = timeToIdx[+param.time];
+              const vol = idx != null && rows[idx] ? +rows[idx].volume : null;
+              if (vol != null)
+                volChart.setCrosshairPosition(vol, param.time, volSeries);
+              else volChart.clearCrosshairPosition();
+            } else volChart.clearCrosshairPosition();
+          }
+          crossSyncing = false;
+        });
+        volChart.subscribeCrosshairMove((param) => {
+          if (crossSyncing || !candleSeries) return;
+          crossSyncing = true;
+          if (!param.time) {
+            priceChart.clearCrosshairPosition();
+          } else {
+            const volData = param.seriesData && param.seriesData.get(volSeries);
+            if (volData) {
+              const idx = timeToIdx[+param.time];
+              const close = idx != null && rows[idx] ? +rows[idx].close : null;
+              if (close != null)
+                priceChart.setCrosshairPosition(
+                  close,
+                  param.time,
+                  candleSeries,
+                );
+              else priceChart.clearCrosshairPosition();
+            } else priceChart.clearCrosshairPosition();
+          }
+          crossSyncing = false;
+        });
+
+        priceChart.timeScale().scrollToRealTime();
+      }
+
+      // ============================================================
+      // REBUILD SERIES DATA
+      // ============================================================
+      function rebuildSeriesData() {
+        if (!candleSeries) return;
+        timeToIdx = {};
+        const candles = [],
+          smaArr = [],
+          bbUpArr = [],
+          bbLoArr = [],
+          volArr = [],
+          volMaArr = [];
+        let lastT = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i];
+          const col = vsaCandleColor(r.vsa_color, isTimechart);
+          const vc = vsaVolColor(r.vsa_color);
+          let t = rowTime(r);
+          if (t <= lastT) t = lastT + 1;
+          lastT = t;
+          timeToIdx[+t] = i;
+          candles.push({
+            time: t,
+            open: +r.open,
+            high: +r.high,
+            low: +r.low,
+            close: +r.close,
+            color: col,
+            borderColor: col,
+            wickColor: col,
+          });
+          if (i >= SMA_PERIOD - 1) {
+            let s = 0;
+            for (let j = i - SMA_PERIOD + 1; j <= i; j++) s += +rows[j].close;
+            smaArr.push({ time: t, value: s / SMA_PERIOD });
+          }
+          const bb = calcBB(rows, i);
+          if (bb) {
+            bbUpArr.push({ time: t, value: bb.upper });
+            bbLoArr.push({ time: t, value: bb.lower });
+          }
+          volArr.push({ time: t, value: +r.volume, color: vc });
+          if (i >= VOL_MA_PERIOD - 1) {
+            let s = 0;
+            for (let j = i - VOL_MA_PERIOD + 1; j <= i; j++)
+              s += +rows[j].volume;
+            volMaArr.push({ time: t, value: s / VOL_MA_PERIOD });
+          }
+        }
+        lastRenderedTime = lastT;
+        candleSeries.setData(candles);
+        smaSeries.setData(smaArr);
+        bbUpperSeries.setData(bbUpArr);
+        bbLowerSeries.setData(bbLoArr);
+        volSeries.setData(volArr);
+        volMaSeries.setData(volMaArr);
+        priceChart.timeScale().scrollToRealTime();
+        volChart.timeScale().scrollToRealTime();
+      }
+
+      // ============================================================
+      // APPEND BAR
+      // ============================================================
+      function appendBar(r) {
+        if (!candleSeries) return;
+        const i = rows.length - 1;
+        const col = vsaCandleColor(r.vsa_color, isTimechart);
+        const vc = vsaVolColor(r.vsa_color);
+        let t = rowTime(r);
+        if (t <= lastRenderedTime) t = lastRenderedTime + 1;
+        lastRenderedTime = t;
+        timeToIdx[+t] = rows.length - 1;
+        candleSeries.update({
+          time: t,
+          open: +r.open,
+          high: +r.high,
+          low: +r.low,
+          close: +r.close,
+          color: col,
+          borderColor: col,
+          wickColor: col,
+        });
+        if (i >= SMA_PERIOD - 1) {
+          let s = 0;
+          for (let j = i - SMA_PERIOD + 1; j <= i; j++) s += +rows[j].close;
+          smaSeries.update({ time: t, value: s / SMA_PERIOD });
+        }
+        const bb = calcBB(rows, i);
+        if (bb) {
+          bbUpperSeries.update({ time: t, value: bb.upper });
+          bbLowerSeries.update({ time: t, value: bb.lower });
+        }
+        volSeries.update({ time: t, value: +r.volume, color: vc });
+        if (i >= VOL_MA_PERIOD - 1) {
+          let s = 0;
+          for (let j = i - VOL_MA_PERIOD + 1; j <= i; j++) s += +rows[j].volume;
+          volMaSeries.update({ time: t, value: s / VOL_MA_PERIOD });
+        }
+        priceChart.timeScale().scrollToRealTime();
+        volChart.timeScale().scrollToRealTime();
+      }
+
+      // ============================================================
+      // TABS
+      // ============================================================
+      function renderTabs() {
+        document.getElementById("inst-tabs-portrait").innerHTML = instruments
+          .map((inst) => {
+            const root = inst.split(" ")[0];
+            return `<button class="tab${inst === currentInst ? " active" : ""}" onclick="selectInstrument('${esc(inst)}')">${root}</button>`;
+          })
+          .join("");
+        const sizes = currentInst ? allSizes[currentInst] || [] : [];
+        const tfs = currentInst ? allTimeframes[currentInst] || [] : [];
+        let html = sizes
+          .map(
+            (sz) =>
+              `<button class="tab${currentType === "renko" && currentSize === sz ? " active" : ""}" onclick="selectChart('renko',${sz})">${sz}</button>`,
+          )
+          .join("");
+        if (sizes.length && tfs.length) html += '<div class="tab-sep"></div>';
+        html += tfs
+          .map(
+            (tf) =>
+              `<button class="tab time${currentType === "time" && currentSize === tf ? " active" : ""}" onclick="selectChart('time',${tf})">${tf}m</button>`,
+          )
+          .join("");
+        document.getElementById("unified-tabs").innerHTML = html;
+        const live = document
+          .getElementById("status-dot-portrait")
+          .classList.contains("live");
+        let lh = `<div class="left-dot${live ? " live" : ""}" id="status-dot-landscape"></div>`;
+        lh += instruments
+          .map(
+            (inst) =>
+              `<button class="vtab${inst === currentInst ? " active" : ""}" onclick="selectInstrument('${esc(inst)}')">${inst.split(" ")[0]}</button>`,
+          )
+          .join("");
+        if (sizes.length || tfs.length) lh += '<div class="left-sep"></div>';
+        lh += sizes
+          .map(
+            (sz) =>
+              `<button class="vtab${currentType === "renko" && currentSize === sz ? " active" : ""}" onclick="selectChart('renko',${sz})">${sz}</button>`,
+          )
+          .join("");
+        if (sizes.length && tfs.length) lh += '<div class="left-sep"></div>';
+        lh += tfs
+          .map(
+            (tf) =>
+              `<button class="vtab${currentType === "time" && currentSize === tf ? " active" : ""}" onclick="selectChart('time',${tf})">${tf}m</button>`,
+          )
+          .join("");
+        document.getElementById("left-scroll").innerHTML = lh;
+      }
+
+      // ============================================================
+      // ORIENTATION + RESIZE
+      // ============================================================
+      function checkOrientation() {
+        isLandscape = window.innerWidth > window.innerHeight;
+      }
+      function onResize() {
+        const was = isLandscape;
+        checkOrientation();
+        if (was !== isLandscape) {
+          const target = isLandscape
+            ? document.getElementById("chart-area-landscape")
+            : document.getElementById("chart-area-portrait");
+          target.appendChild(document.getElementById("price-panel"));
+          target.appendChild(document.getElementById("drag-handle"));
+          target.appendChild(document.getElementById("volume-panel"));
+          target.appendChild(document.getElementById("chart-loading"));
+          initPanelHeights();
+          buildCharts();
+          return;
+        }
+        initPanelHeights();
+        resizeCharts();
+      }
+      function initPanelHeights() {
+        checkOrientation();
+        const totalH = isLandscape
+          ? window.innerHeight - 12
+          : window.innerHeight - 44 - 40 - 12;
+        pricePanelH = Math.floor(totalH * 0.7);
+        volPanelH = totalH - pricePanelH;
+        applyPanelHeights();
+      }
+      function applyPanelHeights() {
+        document.getElementById("price-panel").style.height =
+          pricePanelH + "px";
+        document.getElementById("volume-panel").style.height = volPanelH + "px";
+      }
+      function resizeCharts() {
+        if (!priceChart || !volChart) return;
+        priceChart.resize(
+          document.getElementById("price-panel").clientWidth,
+          pricePanelH,
+        );
+        volChart.resize(
+          document.getElementById("volume-panel").clientWidth,
+          volPanelH,
+        );
+      }
+
+      // ============================================================
+      // DRAG HANDLE
+      // ============================================================
+      function initDragHandle() {
+        const handle = document.getElementById("drag-handle");
+        let dragging = false,
+          startY = 0,
+          startPH = 0,
+          startVH = 0;
+        const onStart = (e) => {
+          dragging = true;
+          startY = e.touches ? e.touches[0].clientY : e.clientY;
+          startPH = pricePanelH;
+          startVH = volPanelH;
+          e.preventDefault();
+        };
+        const onMove = (e) => {
+          if (!dragging) return;
+          const y = e.touches ? e.touches[0].clientY : e.clientY;
+          pricePanelH = Math.max(
+            40,
+            Math.min(startPH + startVH - 40, startPH + (y - startY)),
+          );
+          volPanelH = startPH + startVH - pricePanelH;
+          applyPanelHeights();
+          resizeCharts();
+          e.preventDefault();
+        };
+        const onEnd = () => {
+          dragging = false;
+        };
+        handle.addEventListener("mousedown", onStart, { passive: false });
+        handle.addEventListener("touchstart", onStart, { passive: false });
+        window.addEventListener("mousemove", onMove, { passive: false });
+        window.addEventListener("touchmove", onMove, { passive: false });
+        window.addEventListener("mouseup", onEnd);
+        window.addEventListener("touchend", onEnd);
+      }
+
+      // ============================================================
+      // HELPERS
+      // ============================================================
+      function parseTime(str) {
+        let s = str.trim();
+        s = s.replace(/^(\d{4}-\d{2}-\d{2}) /, "$1T");
+        s = s.replace(/(T[\d:.]+) ([+-])/, "$1$2");
+        s = s.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+        s = s.replace(/([+-]\d{2})$/, "$1:00");
+        return Math.floor(new Date(s).getTime() / 1000) + LOCAL_OFFSET_SECONDS;
+      }
+      function setLive(live) {
+        document
+          .getElementById("status-dot-portrait")
+          .classList.toggle("live", live);
+        const ld = document.getElementById("status-dot-landscape");
+        if (ld) ld.classList.toggle("live", live);
+      }
+      function showChartLoading(show) {
+        document
+          .getElementById("chart-loading")
+          .classList.toggle("hidden", !show);
+      }
+      function showToast(msg, ms = 3000) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), ms);
+      }
+      function esc(s) {
+        return s.replace(/'/g, "\\'");
+      }
+      function initPanelContainers() {
+        checkOrientation();
+        const target = isLandscape
+          ? document.getElementById("chart-area-landscape")
+          : document.getElementById("chart-area-portrait");
+        target.appendChild(document.getElementById("price-panel"));
+        target.appendChild(document.getElementById("drag-handle"));
+        target.appendChild(document.getElementById("volume-panel"));
+        target.appendChild(document.getElementById("chart-loading"));
+        initPanelHeights();
+      }
+
+      init();
+    </script>
+  </body>
+</html>

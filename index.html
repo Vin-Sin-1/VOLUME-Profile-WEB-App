@@ -1,0 +1,1406 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Volume Profile</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0d1117" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #1e293b;
+        --panel-strong: #111827;
+        --border: #334155;
+        --border-soft: #17202a;
+        --text: #f1f5f9;
+        --muted: #64748b;
+        --gold: #fcd34d;
+        --green: #22c55e;
+        --red: #ef4444;
+        --amber: #f59e0b;
+        --purple: #a78bfa;
+        --orange: #f97316;
+        --blue: #3b82f6;
+        --radius: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        width: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        overflow-x: hidden;
+      }
+
+      body {
+        padding: 0;
+      }
+
+      #app {
+        min-height: 100vh;
+        padding: 16px;
+        display: flex;
+        justify-content: center;
+        background:
+          radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.02),
+            transparent 35%
+          ),
+          var(--bg);
+      }
+
+      .page {
+        width: min(100%, 640px);
+        max-width: 640px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .header,
+      .pills,
+      .groups,
+      .footer {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .page-title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .page-title .brand {
+        color: var(--gold);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .page-title .subtitle {
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+      }
+
+      .mode-toggle,
+      .segmented {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      button,
+      .pill {
+        border: none;
+        border-radius: 999px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .mode-button,
+      .segmented button {
+        padding: 10px 16px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        transition:
+          background 0.2s ease,
+          color 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .mode-button.active,
+      .segmented button.active {
+        background: var(--panel-strong);
+        color: var(--text);
+      }
+
+      .segmented button:hover,
+      .mode-button:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 11px;
+        min-width: 84px;
+        border-radius: 10px;
+      }
+
+      .pill strong {
+        color: inherit;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .pill[data-color="muted"] strong {
+        color: var(--muted);
+      }
+
+      .pill[data-color="gold"] strong {
+        color: var(--gold);
+      }
+      .pill[data-color="green"] strong {
+        color: var(--green);
+      }
+      .pill[data-color="red"] strong {
+        color: var(--red);
+      }
+      .pill[data-color="amber"] strong {
+        color: var(--amber);
+      }
+      .pill[data-color="purple"] strong {
+        color: var(--purple);
+      }
+      .pill[data-color="blue"] strong {
+        color: var(--blue);
+      }
+
+      .selectors {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .selector-group {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        padding: 4px;
+        scrollbar-width: none;
+      }
+
+      .selector-group::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+
+      .selector-group button {
+        min-width: 72px;
+        flex: 1 0 auto;
+        border-radius: 12px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .selector-group button.active {
+        background: var(--panel-strong);
+        color: var(--text);
+      }
+
+      .refresh-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
+        transition: opacity 0.2s ease, background 0.2s ease;
+      }
+
+      .refresh-button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .histogram-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .histogram-header,
+      .histogram-row {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr) 82px 56px;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .histogram-header {
+        border-bottom: 1px solid var(--border);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .histogram-row {
+        position: relative;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          opacity 0.2s ease;
+      }
+
+      .histogram-row:last-child {
+        border-bottom: none;
+      }
+
+      .histogram-row:hover,
+      .histogram-row.active {
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .histogram-row[data-disabled="true"] {
+        opacity: 0.35;
+      }
+
+      .price-cell {
+        font-family: monospace;
+        font-size: 12px;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+      }
+
+      .price-cell.current {
+        color: var(--green);
+        font-weight: 700;
+      }
+      .price-cell.poc {
+        color: var(--amber);
+        font-weight: 700;
+      }
+
+      .bar-cell {
+        position: relative;
+        min-height: 18px;
+        height: 18px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+      }
+
+      .bar-segment {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.2s ease;
+      }
+
+      .bar-indicator {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+        border-left: 6px solid var(--green);
+        pointer-events: none;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 0 4px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.2;
+        min-width: 120px;
+      }
+
+      .legend-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+        border: 1px solid rgba(255,255,255,.12);
+      }
+
+      .histogram-row {
+        position: relative;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          opacity 0.2s ease;
+        touch-action: manipulation;
+        user-select: none;
+      }
+
+      .volume-cell,
+      .delta-cell {
+        text-align: right;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .delta-cell.positive {
+        color: var(--blue);
+      }
+      .delta-cell.negative {
+        color: var(--red);
+      }
+
+      .tooltip-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        min-height: 84px;
+      }
+
+      .tooltip-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .tooltip-item label {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .tooltip-item strong {
+        font-size: 14px;
+        line-height: 1.2;
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .status-bar {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .note {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 11px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 720px) {
+        .histogram-header,
+        .histogram-row {
+          grid-template-columns: 56px minmax(0, 1fr) 72px 56px;
+        }
+
+        .histogram-header,
+        .histogram-row {
+          padding: 9px 12px;
+        }
+
+        .mode-button,
+        .segmented button {
+          padding: 10px 14px;
+        }
+
+        .header,
+        .pills,
+        .selectors,
+        .footer {
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" role="main"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.35.0/dist/supabase.min.js"></script>
+    <script>
+      const SUPABASE_URL = "https://nyykpszexlxtapbnkxpw.supabase.co";
+      const SUPABASE_ANON_KEY = "sb_publishable_1Qv50ww1Krv0_8-Tgtdn-g_ahEOIOoP";
+      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const instruments = {
+        GC: { label: "GC", pattern: "GC%", bucketSize: 1.2 },
+        CL: { label: "CL", pattern: "CL%", bucketSize: 0.12 },
+        ES: { label: "ES", pattern: "ES%", bucketSize: 1.2 },
+      };
+
+      const windows = [
+        {
+          id: "1h",
+          label: "1h",
+          getStart: () => new Date(Date.now() - 1 * 3600 * 1000),
+          pretty: "Last 1h",
+        },
+        {
+          id: "2h",
+          label: "2h",
+          getStart: () => new Date(Date.now() - 2 * 3600 * 1000),
+          pretty: "Last 2h",
+        },
+        {
+          id: "3h",
+          label: "3h",
+          getStart: () => new Date(Date.now() - 3 * 3600 * 1000),
+          pretty: "Last 3h",
+        },
+        {
+          id: "4h",
+          label: "4h",
+          getStart: () => new Date(Date.now() - 4 * 3600 * 1000),
+          pretty: "Last 4h",
+        },
+        {
+          id: "5h",
+          label: "5h",
+          getStart: () => new Date(Date.now() - 5 * 3600 * 1000),
+          pretty: "Last 5h",
+        },
+        {
+          id: "london",
+          label: "London",
+          getStart: () => {
+            const now = new Date();
+            const start = new Date(
+              Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                8,
+                0,
+                0,
+              ),
+            );
+            return start > now
+              ? new Date(start.getTime() - 24 * 3600 * 1000)
+              : start;
+          },
+          pretty: "London",
+        },
+        {
+          id: "ny",
+          label: "NY",
+          getStart: () => {
+            const now = new Date();
+            const start = new Date(
+              Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                13,
+                30,
+                0,
+              ),
+            );
+            return start > now
+              ? new Date(start.getTime() - 24 * 3600 * 1000)
+              : start;
+          },
+          pretty: "NY",
+        },
+      ];
+
+      const SAMPLE_META = {
+        instrument: "GC JUN26",
+        cutoff_price: 4515.4,
+        cutoff_is_bull: false,
+        poc: 4515.6,
+        total_session_volume: 12951,
+      };
+
+      const SAMPLE_PROFILE = [
+        {
+          bucket: 4537.2,
+          total_volume: 43,
+          brick_count: 4,
+          bull_vol: 29,
+          bear_vol: 14,
+          buy_vol: 37,
+          sell_vol: 6,
+          net_delta: 31,
+          delta_pct: 72.1,
+          velocity: 74.14,
+        },
+        {
+          bucket: 4536.0,
+          total_volume: 218,
+          brick_count: 15,
+          bull_vol: 167,
+          bear_vol: 51,
+          buy_vol: 133,
+          sell_vol: 85,
+          net_delta: 48,
+          delta_pct: 22.0,
+          velocity: 2.18,
+        },
+        {
+          bucket: 4534.8,
+          total_volume: 442,
+          brick_count: 39,
+          bull_vol: 318,
+          bear_vol: 124,
+          buy_vol: 240,
+          sell_vol: 202,
+          net_delta: 38,
+          delta_pct: 8.6,
+          velocity: 0.55,
+        },
+        {
+          bucket: 4533.6,
+          total_volume: 621,
+          brick_count: 50,
+          bull_vol: 205,
+          bear_vol: 416,
+          buy_vol: 250,
+          sell_vol: 371,
+          net_delta: -121,
+          delta_pct: -19.5,
+          velocity: 0.74,
+        },
+        {
+          bucket: 4532.4,
+          total_volume: 349,
+          brick_count: 24,
+          bull_vol: 172,
+          bear_vol: 177,
+          buy_vol: 168,
+          sell_vol: 181,
+          net_delta: -13,
+          delta_pct: -3.7,
+          velocity: 0.78,
+        },
+        {
+          bucket: 4531.2,
+          total_volume: 157,
+          brick_count: 9,
+          bull_vol: 43,
+          bear_vol: 114,
+          buy_vol: 91,
+          sell_vol: 66,
+          net_delta: 25,
+          delta_pct: 15.9,
+          velocity: 2.7,
+        },
+        {
+          bucket: 4530.0,
+          total_volume: 31,
+          brick_count: 7,
+          bull_vol: 4,
+          bear_vol: 27,
+          buy_vol: 8,
+          sell_vol: 23,
+          net_delta: -15,
+          delta_pct: -48.4,
+          velocity: 3.71,
+        },
+        {
+          bucket: 4528.8,
+          total_volume: 29,
+          brick_count: 7,
+          bull_vol: 5,
+          bear_vol: 24,
+          buy_vol: 14,
+          sell_vol: 15,
+          net_delta: -1,
+          delta_pct: -3.4,
+          velocity: 12.81,
+        },
+        {
+          bucket: 4527.6,
+          total_volume: 47,
+          brick_count: 8,
+          bull_vol: 16,
+          bear_vol: 31,
+          buy_vol: 18,
+          sell_vol: 29,
+          net_delta: -11,
+          delta_pct: -23.4,
+          velocity: 5.08,
+        },
+        {
+          bucket: 4526.4,
+          total_volume: 42,
+          brick_count: 7,
+          bull_vol: 3,
+          bear_vol: 39,
+          buy_vol: 10,
+          sell_vol: 32,
+          net_delta: -22,
+          delta_pct: -52.4,
+          velocity: 3.96,
+        },
+        {
+          bucket: 4525.2,
+          total_volume: 65,
+          brick_count: 7,
+          bull_vol: 3,
+          bear_vol: 62,
+          buy_vol: 27,
+          sell_vol: 38,
+          net_delta: -11,
+          delta_pct: -16.9,
+          velocity: 4.93,
+        },
+        {
+          bucket: 4524.0,
+          total_volume: 5,
+          brick_count: 4,
+          bull_vol: 3,
+          bear_vol: 2,
+          buy_vol: 2,
+          sell_vol: 3,
+          net_delta: -1,
+          delta_pct: -20.0,
+          velocity: 0.74,
+        },
+        {
+          bucket: 4522.8,
+          total_volume: 125,
+          brick_count: 18,
+          bull_vol: 95,
+          bear_vol: 30,
+          buy_vol: 73,
+          sell_vol: 52,
+          net_delta: 21,
+          delta_pct: 16.8,
+          velocity: 2.84,
+        },
+        {
+          bucket: 4521.6,
+          total_volume: 241,
+          brick_count: 42,
+          bull_vol: 135,
+          bear_vol: 106,
+          buy_vol: 129,
+          sell_vol: 112,
+          net_delta: 17,
+          delta_pct: 7.1,
+          velocity: 2.75,
+        },
+        {
+          bucket: 4520.4,
+          total_volume: 549,
+          brick_count: 67,
+          bull_vol: 305,
+          bear_vol: 244,
+          buy_vol: 336,
+          sell_vol: 213,
+          net_delta: 123,
+          delta_pct: 22.4,
+          velocity: 1.8,
+        },
+        {
+          bucket: 4519.2,
+          total_volume: 890,
+          brick_count: 85,
+          bull_vol: 651,
+          bear_vol: 239,
+          buy_vol: 531,
+          sell_vol: 359,
+          net_delta: 172,
+          delta_pct: 19.3,
+          velocity: 1.94,
+        },
+        {
+          bucket: 4518.0,
+          total_volume: 995,
+          brick_count: 138,
+          bull_vol: 440,
+          bear_vol: 555,
+          buy_vol: 445,
+          sell_vol: 550,
+          net_delta: -105,
+          delta_pct: -10.6,
+          velocity: 0.8,
+        },
+        {
+          bucket: 4516.8,
+          total_volume: 1105,
+          brick_count: 146,
+          bull_vol: 498,
+          bear_vol: 607,
+          buy_vol: 556,
+          sell_vol: 549,
+          net_delta: 7,
+          delta_pct: 0.6,
+          velocity: 1.08,
+        },
+        {
+          bucket: 4515.6,
+          total_volume: 1423,
+          brick_count: 170,
+          bull_vol: 915,
+          bear_vol: 508,
+          buy_vol: 725,
+          sell_vol: 698,
+          net_delta: 27,
+          delta_pct: 1.9,
+          velocity: 0.93,
+        },
+        {
+          bucket: 4514.4,
+          total_volume: 1313,
+          brick_count: 174,
+          bull_vol: 573,
+          bear_vol: 740,
+          buy_vol: 604,
+          sell_vol: 709,
+          net_delta: -105,
+          delta_pct: -8.0,
+          velocity: 1.09,
+        },
+        {
+          bucket: 4513.2,
+          total_volume: 1101,
+          brick_count: 159,
+          bull_vol: 632,
+          bear_vol: 469,
+          buy_vol: 572,
+          sell_vol: 529,
+          net_delta: 43,
+          delta_pct: 3.9,
+          velocity: 1.32,
+        },
+        {
+          bucket: 4512.0,
+          total_volume: 956,
+          brick_count: 113,
+          bull_vol: 376,
+          bear_vol: 580,
+          buy_vol: 408,
+          sell_vol: 548,
+          net_delta: -140,
+          delta_pct: -14.6,
+          velocity: 1.33,
+        },
+        {
+          bucket: 4510.8,
+          total_volume: 519,
+          brick_count: 66,
+          bull_vol: 299,
+          bear_vol: 220,
+          buy_vol: 247,
+          sell_vol: 272,
+          net_delta: -25,
+          delta_pct: -4.8,
+          velocity: 2.16,
+        },
+        {
+          bucket: 4509.6,
+          total_volume: 618,
+          brick_count: 57,
+          bull_vol: 240,
+          bear_vol: 378,
+          buy_vol: 249,
+          sell_vol: 369,
+          net_delta: -120,
+          delta_pct: -19.4,
+          velocity: 2.21,
+        },
+        {
+          bucket: 4508.4,
+          total_volume: 423,
+          brick_count: 34,
+          bull_vol: 201,
+          bear_vol: 222,
+          buy_vol: 184,
+          sell_vol: 239,
+          net_delta: -55,
+          delta_pct: -13.0,
+          velocity: 1.41,
+        },
+        {
+          bucket: 4507.2,
+          total_volume: 330,
+          brick_count: 31,
+          bull_vol: 97,
+          bear_vol: 233,
+          buy_vol: 135,
+          sell_vol: 195,
+          net_delta: -60,
+          delta_pct: -18.2,
+          velocity: 2.11,
+        },
+        {
+          bucket: 4506.0,
+          total_volume: 265,
+          brick_count: 22,
+          bull_vol: 78,
+          bear_vol: 187,
+          buy_vol: 91,
+          sell_vol: 174,
+          net_delta: -83,
+          delta_pct: -31.3,
+          velocity: 4.68,
+        },
+        {
+          bucket: 4504.8,
+          total_volume: 33,
+          brick_count: 7,
+          bull_vol: 3,
+          bear_vol: 30,
+          buy_vol: 0,
+          sell_vol: 33,
+          net_delta: -33,
+          delta_pct: -100.0,
+          velocity: 7.61,
+        },
+        {
+          bucket: 4503.6,
+          total_volume: 16,
+          brick_count: 2,
+          bull_vol: 0,
+          bear_vol: 16,
+          buy_vol: 0,
+          sell_vol: 16,
+          net_delta: -16,
+          delta_pct: -100.0,
+          velocity: 80.0,
+        },
+      ];
+
+      const state = {
+        instrument: "GC",
+        mode: "VOL",
+        windowId: "4h",
+        profile: SAMPLE_PROFILE,
+        meta: SAMPLE_META,
+        sessionLabel: "",
+        activeBucket: null,
+        hoveredBucket: null,
+        error: null,
+        loading: false,
+      };
+
+      const app = document.getElementById("app");
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function formatStockholm(date) {
+        return new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Europe/Stockholm",
+          hour12: false,
+        }).format(date);
+      }
+
+      function getWindow(start) {
+        const end = new Date();
+        const windowDef =
+          windows.find((w) => w.id === state.windowId) || windows[3];
+        return `${windowDef.pretty} ${formatStockholm(start)}–${formatStockholm(end)}`;
+      }
+
+      function formatNumber(value) {
+        return new Intl.NumberFormat("en-US").format(value);
+      }
+
+      function hasLiveKey() {
+        return (
+          SUPABASE_ANON_KEY &&
+          !SUPABASE_ANON_KEY.includes("REPLACE_WITH_ANON_KEY") &&
+          !SUPABASE_ANON_KEY.includes("REPLACE_WITH")
+        );
+      }
+
+      function buildTooltip(row) {
+        if (!row) {
+          return `<div class="status-bar">Tap a row to show price, vel, vol, bricks, buy, sell, bull, bear, delta, D%</div>`;
+        }
+
+        const details = [
+          ["PRICE", row.bucket.toFixed(1), "var(--text)"],
+          [
+            "VEL",
+            row.velocity > 0 ? row.velocity.toFixed(2) + " t/s" : "< P70",
+            row.velocity > 0 ? "var(--orange)" : "var(--muted)",
+          ],
+          ["VOL", formatNumber(row.total_volume), "var(--text)"],
+          ["BRICKS", String(row.brick_count), "var(--muted)"],
+          ["BUY", formatNumber(row.buy_vol), "var(--green)"],
+          ["SELL", formatNumber(row.sell_vol), "var(--red)"],
+          ["BULL", formatNumber(row.bull_vol), "var(--blue)"],
+          ["BEAR", formatNumber(row.bear_vol), "var(--amber)"],
+          [
+            "DELTA",
+            (row.net_delta > 0 ? "+" : "") + row.net_delta,
+            row.net_delta > 0
+              ? "var(--blue)"
+              : row.net_delta < 0
+                ? "var(--red)"
+                : "var(--text)",
+          ],
+          [
+            "D%",
+            (row.delta_pct > 0 ? "+" : "") + row.delta_pct.toFixed(1) + "%",
+            row.delta_pct > 0
+              ? "var(--blue)"
+              : row.delta_pct < 0
+                ? "var(--red)"
+                : "var(--text)",
+          ],
+        ];
+
+        return details
+          .map(
+            ([label, value, color]) => `
+        <div class="tooltip-item">
+          <label>${label}</label>
+          <strong style="color:${color}">${value}</strong>
+        </div>
+      `,
+          )
+          .join("");
+      }
+
+      function computeSummary(profile, meta) {
+        const rows = (profile || []).map((r) => ({ ...r }));
+        if (!rows.length) {
+          return {
+            rows: [],
+            maxVol: 1,
+            maxVel: 1,
+            p70: 0,
+            vah: 0,
+            val: 0,
+            currentBucket: null,
+            pocBucket: null,
+            avgVel: 0,
+          };
+        }
+
+        const maxVol = Math.max(...rows.map((r) => r.total_volume));
+        const sortedVolumes = [...rows]
+          .map((r) => r.total_volume)
+          .sort((a, b) => a - b);
+        const p70 = sortedVolumes[Math.floor(sortedVolumes.length * 0.7)] || 0;
+
+        rows.forEach((r) => {
+          if (state.mode === "VEL" && r.total_volume < p70) {
+            r.velocity = 0;
+          }
+        });
+
+        const maxVel = Math.max(...rows.map((r) => r.velocity));
+        const velRows = rows.filter((r) => r.velocity > 0);
+        const avgVel = velRows.length
+          ? velRows.reduce((sum, r) => sum + r.velocity, 0) / velRows.length
+          : 0;
+
+        const totalVolume =
+          meta?.total_session_volume ||
+          rows.reduce((sum, r) => sum + r.total_volume, 0);
+        const vaSet = new Set();
+        let acc = 0;
+        rows
+          .slice()
+          .sort((a, b) => b.total_volume - a.total_volume)
+          .forEach((row) => {
+            if (acc < totalVolume * 0.7) {
+              acc += row.total_volume;
+              vaSet.add(row.bucket);
+            }
+          });
+
+        const vah = Math.max(
+          ...rows.filter((r) => vaSet.has(r.bucket)).map((r) => r.bucket),
+          0,
+        );
+        const val = Math.min(
+          ...rows.filter((r) => vaSet.has(r.bucket)).map((r) => r.bucket),
+          0,
+        );
+        const currentBucket = rows.reduce((best, r) => {
+          if (best === null) return r;
+          return Math.abs(r.bucket - meta.cutoff_price) <
+            Math.abs(best.bucket - meta.cutoff_price)
+            ? r
+            : best;
+        }, null)?.bucket;
+        const pocBucket =
+          state.mode === "VOL"
+            ? (meta?.poc
+                ? rows.find((r) => r.bucket === meta.poc)?.bucket || rows.reduce(
+                    (best, r) =>
+                      !best || r.total_volume > best.total_volume ? r : best,
+                    rows[0],
+                  ).bucket
+                : rows.reduce(
+                    (best, r) =>
+                      !best || r.total_volume > best.total_volume ? r : best,
+                    rows[0],
+                  ).bucket)
+            : rows.reduce(
+                (best, r) => (!best || r.velocity > best.velocity ? r : best),
+                rows[0],
+              ).bucket;
+
+        rows.forEach((r) => {
+          r.isVA = vaSet.has(r.bucket);
+          r.isCurrent = r.bucket === currentBucket;
+          r.isPOC = r.bucket === pocBucket;
+        });
+
+        return {
+          rows,
+          maxVol,
+          maxVel,
+          p70,
+          vah,
+          val,
+          currentBucket,
+          pocBucket,
+          avgVel,
+          totalVolume,
+        };
+      }
+
+      function getRowColors(row, summary) {
+        if (row.isCurrent) {
+          return {
+            left: "rgba(34,197,94,0.96)",
+            right: "rgba(22,163,74,0.96)",
+          };
+        }
+        if (row.isPOC) {
+          return {
+            left: "rgba(245,158,11,0.92)",
+            right: "rgba(217,119,6,0.92)",
+          };
+        }
+
+        if (state.mode === "VOL") {
+          if (row.delta_pct < -8) {
+            return {
+              left: "rgba(127,29,29,0.6)",
+              right: "rgba(239,68,68,0.8)",
+            };
+          }
+          if (row.delta_pct > 6) {
+            return {
+              left: "rgba(59,130,246,0.8)",
+              right: "rgba(29,78,216,0.8)",
+            };
+          }
+          return {
+            left: "rgba(59,130,246,0.22)",
+            right: "rgba(100,116,139,0.6)",
+          };
+        }
+
+        if (row.velocity === 0) {
+          return { left: "rgba(30,41,59,0.18)", right: "rgba(30,41,59,0.18)" };
+        }
+
+        const pct = row.velocity / Math.max(summary.maxVel, 1);
+        if (pct > 0.6) {
+          return {
+            left: "rgba(249,115,22,0.8)",
+            right: "rgba(249,115,22,0.8)",
+          };
+        }
+        if (pct > 0.3) {
+          return {
+            left: "rgba(245,158,11,0.55)",
+            right: "rgba(245,158,11,0.55)",
+          };
+        }
+        return { left: "rgba(59,130,246,0.4)", right: "rgba(59,130,246,0.4)" };
+      }
+
+      function render() {
+        const start = windows.find((w) => w.id === state.windowId).getStart();
+        state.sessionLabel = getWindow(start);
+        const summary = computeSummary(state.profile, state.meta);
+        const activeRow =
+          state.hoveredBucket !== null
+            ? summary.rows.find((r) => r.bucket === state.hoveredBucket)
+            : summary.rows.find((r) => r.bucket === state.activeBucket);
+
+        app.innerHTML = `
+        <div class="page" aria-live="polite">
+          <div class="header">
+            <div class="page-title">
+              <div class="brand">Volume Profile</div>
+              <div class="subtitle">${state.meta.instrument || instruments[state.instrument].label} · ${state.sessionLabel}</div>
+            </div>
+            <div class="mode-toggle" role="group" aria-label="Mode switch">
+              <button class="mode-button ${state.mode === "VOL" ? "active" : ""}" data-mode="VOL">VOL</button>
+              <button class="mode-button ${state.mode === "VEL" ? "active" : ""}" data-mode="VEL">VEL</button>
+            </div>
+          </div>
+
+          <div class="pills">
+            <div class="pill" data-color="${state.meta.cutoff_is_bull ? "green" : "red"}"><span>LAST</span><strong>${state.meta.cutoff_price?.toFixed(1) || "-"}${state.meta.cutoff_is_bull ? " ↑" : " ↓"}</strong></div>
+            <div class="pill" data-color="${state.mode === "VOL" ? "amber" : "orange"}"><span>${state.mode === "VOL" ? "POC" : "vPOC"}</span><strong>${summary.pocBucket?.toFixed(1) || "-"}</strong></div>
+            ${state.mode === "VOL" ? `<div class="pill" data-color="purple"><span>VAH</span><strong>${summary.vah?.toFixed(1) || "-"}</strong></div><div class="pill" data-color="purple"><span>VAL</span><strong>${summary.val?.toFixed(1) || "-"}</strong></div><div class="pill" data-color="blue"><span>VOL</span><strong>${formatNumber(summary.totalVolume)}</strong></div>` : `<div class="pill" data-color="orange"><span>MAX</span><strong>${summary.maxVel?.toFixed(2)} t/s</strong></div><div class="pill" data-color="blue"><span>AVG</span><strong>${summary.avgVel?.toFixed(2)} t/s</strong></div><div class="pill" data-color="muted"><span>P70</span><strong>${formatNumber(summary.p70)}</strong></div>`}
+          </div>
+
+          <div class="legend">
+            ${state.mode === "VOL" ? `
+              <div class="legend-item"><span class="legend-swatch" style="background: var(--green)"></span>Current</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: var(--amber)"></span>POC</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(167,139,250,0.65); border-color: rgba(167,139,250,0.65);"></span>VA</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(239,68,68,0.8);"></span>Selling &lt;-8%</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(59,130,246,0.8);"></span>Buying &gt;+6%</div>
+            ` : `
+              <div class="legend-item"><span class="legend-swatch" style="background: var(--green)"></span>Current</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: var(--orange)"></span>vPOC</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(249,115,22,0.8);"></span>High &gt;60%</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(245,158,11,0.55);"></span>Med 30-60%</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(59,130,246,0.4);"></span>Low &lt;30%</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: rgba(30,41,59,0.18);"></span>Below P70</div>
+            `}
+          </div>
+
+          <div class="selectors">
+            <div class="selector-group" role="group" aria-label="Instruments">
+              ${Object.keys(instruments)
+                .map(
+                  (key) => `
+                <button class="${state.instrument === key ? "active" : ""}" data-instrument="${key}">${instruments[key].label}</button>
+              `,
+                )
+                .join("")}
+            </div>
+            <div class="selector-group" role="group" aria-label="Windows">
+              ${windows
+                .map(
+                  (win) => `
+                <button class="${state.windowId === win.id ? "active" : ""}" data-window="${win.id}">${win.label}</button>
+              `,
+                )
+                .join("")}
+            </div>
+            <button class="refresh-button" data-action="refresh" ${state.loading ? 'disabled' : ''}>${state.loading ? 'Refreshing…' : 'Refresh'}</button>
+          </div>
+
+          <div class="histogram-card">
+            <div class="histogram-header">
+              <span>PRICE</span>
+              <span>BAR</span>
+              <span>VOL</span>
+              <span>D%</span>
+            </div>
+            <div id="histogram" aria-label="Histogram rows">
+              ${summary.rows
+                .map((row) => {
+                  const colors = getRowColors(row, summary);
+                  const totalWidth =
+                    state.mode === "VOL"
+                      ? Math.round(
+                          (row.total_volume / Math.max(summary.maxVol, 1)) *
+                            240,
+                        )
+                      : Math.round(
+                          (row.velocity / Math.max(summary.maxVel, 1)) * 240,
+                        );
+                  const leftWidth =
+                    state.mode === "VOL"
+                      ? Math.round(
+                          row.total_volume
+                            ? (row.bull_vol / row.total_volume) * totalWidth
+                            : 0,
+                        )
+                      : totalWidth;
+                  const rightWidth =
+                    state.mode === "VOL" ? totalWidth - leftWidth : 0;
+                  const isDisabled = state.mode === "VEL" && row.velocity === 0;
+                  return `
+                  <div class="histogram-row ${row.isCurrent ? "active" : ""}" data-bucket="${row.bucket}" data-disabled="${isDisabled ? "true" : "false"}">
+                    <div class="price-cell ${row.isCurrent ? "current" : row.isPOC ? "poc" : ""}" style="border-left: ${row.isVA ? "3px solid rgba(167,139,250,0.65)" : "3px solid transparent"}; padding-left: 8px;">${row.bucket.toFixed(1)}</div>
+                    <div class="bar-cell">
+                      <div class="bar-segment" style="width:${leftWidth}px; background:${colors.left};"></div>
+                      ${state.mode === "VOL" ? `<div class="bar-segment" style="width:${rightWidth}px; background:${colors.right}; margin-left:${leftWidth}px;"></div>` : ""}
+                      ${row.isCurrent ? '<div class="bar-indicator"></div>' : ""}
+                    </div>
+                    <div class="volume-cell">${state.mode === "VOL" ? formatNumber(row.total_volume) : row.velocity > 0 ? row.velocity.toFixed(2) : "-"}</div>
+                    <div class="delta-cell ${row.delta_pct > 0 ? "positive" : row.delta_pct < 0 ? "negative" : ""}">${state.mode === "VOL" ? (row.delta_pct > 0 ? "+" : "") + row.delta_pct.toFixed(1) + "%" : row.velocity > 0 ? formatNumber(row.total_volume) : ""}</div>
+                  </div>
+                `;
+                })
+                .join("")}
+            </div>
+          </div>
+
+          <div class="tooltip-card">
+            ${buildTooltip(activeRow)}
+          </div>
+
+          <div class="footer note">
+            ${state.loading ? "Loading live volume profile…" : state.error ? `Unable to load live data: ${state.error}` : "VOL = volume at price · VEL = ticks/sec (P70 filter applied) · Bucket sizes: GC/ES 1.2, CL 0.12"}
+          </div>
+        </div>
+      `;
+
+        bindInteractions();
+      }
+
+      function bindInteractions() {
+        app.querySelectorAll("[data-mode]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.mode = button.dataset.mode;
+            render();
+          });
+        });
+
+        app.querySelectorAll("[data-instrument]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.instrument = button.dataset.instrument;
+            state.meta = SAMPLE_META;
+            state.profile = SAMPLE_PROFILE;
+            state.activeBucket = null;
+            loadProfile();
+            render();
+          });
+        });
+
+        app.querySelectorAll("[data-window]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.windowId = button.dataset.window;
+            state.activeBucket = null;
+            loadProfile();
+            render();
+          });
+        });
+
+        const refreshButton = app.querySelector('[data-action="refresh"]');
+        if (refreshButton) {
+          refreshButton.addEventListener("click", () => {
+            loadProfile();
+          });
+        }
+
+        app.querySelectorAll(".histogram-row").forEach((row) => {
+          row.addEventListener("pointerenter", () => {
+            state.hoveredBucket = Number(row.dataset.bucket);
+            render();
+          });
+          row.addEventListener("pointerleave", () => {
+            state.hoveredBucket = null;
+            render();
+          });
+          row.addEventListener("click", () => {
+            const bucket = Number(row.dataset.bucket);
+            state.activeBucket = state.activeBucket === bucket ? null : bucket;
+            render();
+          });
+        });
+      }
+
+      async function loadProfile() {
+        state.loading = true;
+        state.error = null;
+        render();
+
+        if (!hasLiveKey()) {
+          state.error =
+            "Sample mode is active. Add a valid SUPABASE_ANON_KEY in index.html to enable live Supabase data.";
+          state.loading = false;
+          render();
+          return;
+        }
+
+        const instrument = instruments[state.instrument];
+        const windowDef = windows.find((w) => w.id === state.windowId);
+        const startTime = windowDef.getStart();
+        const cutoffTime = new Date();
+
+        try {
+          const { data, error } = await supabase.rpc("get_volume_profile", {
+            p_instrument: instrument.pattern,
+            p_start_time: startTime.toISOString(),
+            p_cutoff_time: cutoffTime.toISOString(),
+            p_brick_size: 4,
+            p_bucket_size: instrument.bucketSize,
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          if (data?.meta && Array.isArray(data.profile)) {
+            state.meta = data.meta;
+            state.profile = data.profile;
+          } else {
+            throw new Error("Unexpected response format");
+          }
+        } catch (err) {
+          state.error = err.message || String(err);
+        } finally {
+          state.loading = false;
+          render();
+        }
+      }
+
+      render();
+      window.addEventListener("load", loadProfile);
+    </script>
+  </body>
+</html>
