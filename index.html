@@ -1269,14 +1269,14 @@
         const durPlus = app.querySelector('[data-action="dur-plus"]');
         if (durMinus) {
           durMinus.addEventListener("click", () => {
-            state.durationMinutes = Math.max(30, state.durationMinutes - 30);
+            state.durationMinutes = Math.max(15, state.durationMinutes - 15);
             render();
             loadProfile();
           });
         }
         if (durPlus) {
           durPlus.addEventListener("click", () => {
-            state.durationMinutes = Math.min(1440, state.durationMinutes + 30);
+            state.durationMinutes = Math.min(1440, state.durationMinutes + 15);
             render();
             loadProfile();
           });
@@ -1290,7 +1290,7 @@
         if (startMinus) {
           startMinus.addEventListener("click", () => {
             const min = hhmmToMinutes(state.manualStart);
-            state.manualStart = formatHHMM(Math.max(0, min - 30));
+            state.manualStart = formatHHMM(Math.max(0, min - 15));
             render(); loadProfile();
           });
         }
@@ -1298,14 +1298,14 @@
           startPlus.addEventListener("click", () => {
             const min = hhmmToMinutes(state.manualStart);
             const endMin = state.manualEnd ? hhmmToMinutes(state.manualEnd) : getStockholmMinutes();
-            state.manualStart = formatHHMM(Math.min(endMin - 30, min + 30));
+            state.manualStart = formatHHMM(Math.min(endMin - 15, min + 15));
             render(); loadProfile();
           });
         }
         if (endMinus) {
           endMinus.addEventListener("click", () => {
             const curMin = state.manualEnd ? hhmmToMinutes(state.manualEnd) : getStockholmMinutes();
-            const newMin = curMin - 30;
+            const newMin = curMin - 15;
             if (newMin > hhmmToMinutes(state.manualStart)) {
               state.manualEnd = formatHHMM(newMin);
               render(); loadProfile();
@@ -1315,7 +1315,7 @@
         if (endPlus) {
           endPlus.addEventListener("click", () => {
             if (!state.manualEnd) return; // already "Now"
-            const newMin = hhmmToMinutes(state.manualEnd) + 30;
+            const newMin = hhmmToMinutes(state.manualEnd) + 15;
             state.manualEnd = newMin >= getStockholmMinutes() ? null : formatHHMM(newMin);
             render(); loadProfile();
           });
