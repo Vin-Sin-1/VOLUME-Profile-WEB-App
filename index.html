@@ -480,37 +480,6 @@
         user-select: none;
       }
 
-      .tooltip-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 14px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 12px;
-        min-height: 84px;
-      }
-
-      .tooltip-item {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .tooltip-item label {
-        color: var(--muted);
-        font-size: 10px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      .tooltip-item strong {
-        font-size: 14px;
-        line-height: 1.2;
-        color: var(--text);
-        font-weight: 700;
-      }
-
       .status-bar {
         color: var(--muted);
         font-size: 11px;
@@ -925,8 +894,6 @@
         profile: SAMPLE_PROFILE,
         meta: SAMPLE_META,
         sessionLabel: "",
-        activeBucket: null,
-        hoveredBucket: null,
         error: null,
         loading: false,
       };
@@ -1013,56 +980,6 @@
           !SUPABASE_ANON_KEY.includes("REPLACE_WITH_ANON_KEY") &&
           !SUPABASE_ANON_KEY.includes("REPLACE_WITH")
         );
-      }
-
-      function buildTooltip(row) {
-        if (!row) {
-          return `<div class="status-bar">Tap a row to show price, vel, vol, bricks, buy, sell, bull, bear, delta, D%</div>`;
-        }
-
-        const details = [
-          ["PRICE", row.bucket.toFixed(1), "var(--text)"],
-          [
-            "VEL",
-            row.velocity > 0 ? row.velocity.toFixed(2) + " t/s" : "< P70",
-            row.velocity > 0 ? "var(--orange)" : "var(--muted)",
-          ],
-          ["VOL", formatNumber(row.total_volume), "var(--text)"],
-          ["BRICKS", String(row.brick_count), "var(--muted)"],
-          ["BUY", formatNumber(row.buy_vol), "var(--green)"],
-          ["SELL", formatNumber(row.sell_vol), "var(--red)"],
-          ["BULL", formatNumber(row.bull_vol), "var(--blue)"],
-          ["BEAR", formatNumber(row.bear_vol), "var(--amber)"],
-          [
-            "DELTA",
-            (row.net_delta > 0 ? "+" : "") + row.net_delta,
-            row.net_delta > 0
-              ? "var(--blue)"
-              : row.net_delta < 0
-                ? "var(--red)"
-                : "var(--text)",
-          ],
-          [
-            "D%",
-            (row.delta_pct > 0 ? "+" : "") + row.delta_pct.toFixed(1) + "%",
-            row.delta_pct > 0
-              ? "var(--blue)"
-              : row.delta_pct < 0
-                ? "var(--red)"
-                : "var(--text)",
-          ],
-        ];
-
-        return details
-          .map(
-            ([label, value, color]) => `
-        <div class="tooltip-item">
-          <label>${label}</label>
-          <strong style="color:${color}">${value}</strong>
-        </div>
-      `,
-          )
-          .join("");
       }
 
       function computeSummary(profile, meta) {
@@ -1224,10 +1141,6 @@
       function render() {
         state.sessionLabel = getSessionLabel();
         const summary = computeSummary(state.profile, state.meta);
-        const activeRow =
-          state.hoveredBucket !== null
-            ? summary.rows.find((r) => r.bucket === state.hoveredBucket)
-            : summary.rows.find((r) => r.bucket === state.activeBucket);
 
         app.innerHTML = `
         <div class="page" aria-live="polite">
@@ -1289,8 +1202,6 @@
                   const isCur = row.isCurrent;
                   const isPoc = row.isPOC;
                   const isVA  = row.isVA;
-                  const isHov = row.bucket === state.hoveredBucket;
-                  const opacity = state.hoveredBucket !== null && !isHov ? "0.35" : "1";
                   const totalWidth = state.mode === "VOL"
                     ? Math.round((row.total_volume / Math.max(summary.maxVol, 1)) * 260)
                     : Math.round((row.velocity / Math.max(summary.maxVel, 1)) * 260);
@@ -1304,7 +1215,7 @@
                   const volFW     = isCur || isPoc ? "700" : "400";
                   const deltaColor = state.mode === "VOL" ? (row.delta_pct > 0 ? "#3b82f6" : row.delta_pct < 0 ? "#ef4444" : "#475569") : "#475569";
                   return `
-                  <div class="histogram-row" data-bucket="${row.bucket}" style="opacity:${opacity}">
+                  <div class="histogram-row" data-bucket="${row.bucket}">
                     <div class="va-strip" style="border-left:${isVA ? "2px solid rgba(167,139,250,0.4)" : "2px solid transparent"}; background:${isVA ? "rgba(167,139,250,0.13)" : "transparent"}"></div>
                     <div class="price-cell" style="color:${priceColor}; font-weight:${priceFW}">${row.bucket.toFixed(1)}</div>
                     <div class="bar-cell">
@@ -1319,10 +1230,6 @@
                 })
                 .join("")}
             </div>
-          </div>
-
-          <div class="tooltip-card">
-            ${buildTooltip(activeRow)}
           </div>
 
           <div class="footer note">
@@ -1347,7 +1254,6 @@
             state.instrument = button.dataset.instrument;
             state.meta = SAMPLE_META;
             state.profile = SAMPLE_PROFILE;
-            state.activeBucket = null;
             loadProfile();
             render();
           });
@@ -1356,7 +1262,6 @@
         app.querySelectorAll("[data-input-mode]").forEach((btn) => {
           btn.addEventListener("click", () => {
             state.inputMode = btn.dataset.inputMode;
-            state.activeBucket = null;
             render();
             loadProfile();
           });
@@ -1412,21 +1317,6 @@
           });
         }
 
-        app.querySelectorAll(".histogram-row").forEach((row) => {
-          row.addEventListener("pointerenter", () => {
-            state.hoveredBucket = Number(row.dataset.bucket);
-            render();
-          });
-          row.addEventListener("pointerleave", () => {
-            state.hoveredBucket = null;
-            render();
-          });
-          row.addEventListener("click", () => {
-            const bucket = Number(row.dataset.bucket);
-            state.activeBucket = state.activeBucket === bucket ? null : bucket;
-            render();
-          });
-        });
       }
 
       async function loadProfile() {
