@@ -439,45 +439,25 @@
         user-select: none;
       }
 
-      .time-range-row {
+      .time-stepper-row {
         display: flex;
         align-items: center;
-        gap: 6px;
         border: 1px solid var(--border);
         border-radius: 10px;
         background: var(--panel);
-        padding: 5px 10px;
+        overflow: hidden;
       }
 
-      .time-input {
-        background: transparent;
-        border: none;
-        border-bottom: 1px solid var(--border);
-        color: var(--text);
-        font-size: 13px;
+      .stepper-label {
+        font-size: 10px;
         font-weight: 700;
-        font-family: monospace;
-        padding: 3px 4px;
-        width: 46px;
-        text-align: center;
-        outline: none;
-        transition: border-color 0.15s ease;
-      }
-
-      .time-input:focus {
-        border-bottom-color: var(--purple);
-      }
-
-      .time-input.invalid {
-        color: var(--red);
-        border-bottom-color: var(--red);
-      }
-
-      .time-arrow {
         color: var(--muted);
-        font-size: 14px;
+        letter-spacing: 0.06em;
+        padding: 0 8px 0 12px;
+        text-transform: uppercase;
         flex-shrink: 0;
         user-select: none;
+        min-width: 42px;
       }
 
       .status-bar {
@@ -890,7 +870,7 @@
         inputMode: "duration",
         durationMinutes: 240,
         manualStart: "09:00",
-        manualEnd: "17:30",
+        manualEnd: null,
         profile: SAMPLE_PROFILE,
         meta: SAMPLE_META,
         sessionLabel: "",
@@ -917,6 +897,22 @@
         const h = Math.floor(minutes / 60);
         const m = minutes % 60;
         return `${h}h ${String(m).padStart(2, "0")}m`;
+      }
+
+      function formatHHMM(totalMinutes) {
+        const clamped = Math.max(0, Math.min(1439, totalMinutes));
+        const h = Math.floor(clamped / 60);
+        const m = clamped % 60;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      }
+
+      function hhmmToMinutes(hhmm) {
+        const [h, m] = hhmm.split(":").map(Number);
+        return h * 60 + m;
+      }
+
+      function getStockholmMinutes() {
+        return hhmmToMinutes(formatStockholm(new Date()));
       }
 
       function parseStockholmTime(hhmm) {
@@ -955,7 +951,7 @@
       }
 
       function getCutoffTime() {
-        if (state.inputMode === "duration") {
+        if (state.inputMode === "duration" || !state.manualEnd) {
           return new Date();
         }
         return parseStockholmTime(state.manualEnd);
@@ -967,7 +963,7 @@
         if (state.inputMode === "duration") {
           return `${formatDuration(state.durationMinutes)} · ${formatStockholm(start)}–${formatStockholm(end)}`;
         }
-        return `${state.manualStart}–${state.manualEnd} Stockholm`;
+        return `${state.manualStart}–${state.manualEnd ?? "Now"} Stockholm`;
       }
 
       function formatNumber(value) {
@@ -1155,11 +1151,6 @@
             </div>
           </div>
 
-          <div class="pills">
-            <div class="pill" data-color="${state.meta.cutoff_is_bull ? "green" : "red"}"><span>LAST</span><strong>${state.meta.cutoff_price?.toFixed(1) || "-"}${state.meta.cutoff_is_bull ? " ↑" : " ↓"}</strong></div>
-            <div class="pill" data-color="${state.mode === "VOL" ? "amber" : "orange"}"><span>${state.mode === "VOL" ? "POC" : "vPOC"}</span><strong>${summary.pocBucket?.toFixed(1) || "-"}</strong></div>
-            ${state.mode === "VOL" ? `<div class="pill" data-color="purple"><span>VAH</span><strong>${summary.vah?.toFixed(1) || "-"}</strong></div><div class="pill" data-color="purple"><span>VAL</span><strong>${summary.val?.toFixed(1) || "-"}</strong></div><div class="pill" data-color="blue"><span>VOL</span><strong>${formatNumber(summary.totalVolume)}</strong></div>` : `<div class="pill" data-color="orange"><span>MAX</span><strong>${summary.maxVel?.toFixed(2)} t/s</strong></div><div class="pill" data-color="blue"><span>AVG</span><strong>${summary.avgVel?.toFixed(2)} t/s</strong></div><div class="pill" data-color="muted"><span>P70</span><strong>${formatNumber(summary.p70)}</strong></div>`}
-          </div>
 
 
           <div class="selectors">
@@ -1184,10 +1175,17 @@
                 <button class="adj-btn" data-action="dur-plus">+</button>
               </div>
               ` : `
-              <div class="time-range-row">
-                <input class="time-input" type="text" inputmode="numeric" data-field="manualStart" value="${state.manualStart}" placeholder="HH:MM" maxlength="5" />
-                <span class="time-arrow">→</span>
-                <input class="time-input" type="text" inputmode="numeric" data-field="manualEnd" value="${state.manualEnd}" placeholder="HH:MM" maxlength="5" />
+              <div class="time-stepper-row">
+                <span class="stepper-label">Start</span>
+                <button class="adj-btn" data-action="start-minus">−</button>
+                <span class="dur-display">${state.manualStart}</span>
+                <button class="adj-btn" data-action="start-plus">+</button>
+              </div>
+              <div class="time-stepper-row">
+                <span class="stepper-label">End</span>
+                <button class="adj-btn" data-action="end-minus">−</button>
+                <span class="dur-display">${state.manualEnd ?? "Now"}</span>
+                <button class="adj-btn" data-action="end-plus">+</button>
               </div>
               `}
             </div>
@@ -1284,31 +1282,44 @@
           });
         }
 
-        app.querySelectorAll(".time-input").forEach((input) => {
-          input.addEventListener("input", () => {
-            let val = input.value.replace(/[^0-9:]/g, "");
-            if (/^\d{4}$/.test(val)) {
-              val = val.slice(0, 2) + ":" + val.slice(2);
-              input.value = val;
-            }
-            const valid = /^\d{2}:\d{2}$/.test(val);
-            input.classList.toggle("invalid", val.length > 0 && !valid);
+        const startMinus = app.querySelector('[data-action="start-minus"]');
+        const startPlus  = app.querySelector('[data-action="start-plus"]');
+        const endMinus   = app.querySelector('[data-action="end-minus"]');
+        const endPlus    = app.querySelector('[data-action="end-plus"]');
+
+        if (startMinus) {
+          startMinus.addEventListener("click", () => {
+            const min = hhmmToMinutes(state.manualStart);
+            state.manualStart = formatHHMM(Math.max(0, min - 30));
+            render(); loadProfile();
           });
-          input.addEventListener("blur", () => {
-            const val = input.value.trim();
-            const field = input.dataset.field;
-            if (/^\d{2}:\d{2}$/.test(val)) {
-              input.classList.remove("invalid");
-              if (state[field] !== val) {
-                state[field] = val;
-                loadProfile();
-              }
-            } else {
-              input.value = state[field];
-              input.classList.remove("invalid");
+        }
+        if (startPlus) {
+          startPlus.addEventListener("click", () => {
+            const min = hhmmToMinutes(state.manualStart);
+            const endMin = state.manualEnd ? hhmmToMinutes(state.manualEnd) : getStockholmMinutes();
+            state.manualStart = formatHHMM(Math.min(endMin - 30, min + 30));
+            render(); loadProfile();
+          });
+        }
+        if (endMinus) {
+          endMinus.addEventListener("click", () => {
+            const curMin = state.manualEnd ? hhmmToMinutes(state.manualEnd) : getStockholmMinutes();
+            const newMin = curMin - 30;
+            if (newMin > hhmmToMinutes(state.manualStart)) {
+              state.manualEnd = formatHHMM(newMin);
+              render(); loadProfile();
             }
           });
-        });
+        }
+        if (endPlus) {
+          endPlus.addEventListener("click", () => {
+            if (!state.manualEnd) return; // already "Now"
+            const newMin = hhmmToMinutes(state.manualEnd) + 30;
+            state.manualEnd = newMin >= getStockholmMinutes() ? null : formatHHMM(newMin);
+            render(); loadProfile();
+          });
+        }
 
         const refreshButton = app.querySelector('[data-action="refresh"]');
         if (refreshButton) {
