@@ -261,98 +261,62 @@
       }
 
       .histogram-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 0;
       }
 
-      .histogram-header,
       .histogram-row {
-        display: grid;
-        grid-template-columns: 64px minmax(0, 1fr) 82px 56px;
+        display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
-        font-size: 11px;
-        color: var(--muted);
+        height: 17px;
+        margin-bottom: 3px;
+        cursor: default;
+        transition: opacity 0.15s ease;
       }
 
-      .histogram-header {
-        border-bottom: 1px solid var(--border);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        background: rgba(255, 255, 255, 0.02);
-      }
-
-      .histogram-row {
-        position: relative;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        cursor: pointer;
-        transition:
-          background 0.2s ease,
-          opacity 0.2s ease;
-      }
-
-      .histogram-row:last-child {
-        border-bottom: none;
-      }
-
-      .histogram-row:hover,
-      .histogram-row.active {
-        background: rgba(255, 255, 255, 0.04);
-      }
-
-      .histogram-row[data-disabled="true"] {
-        opacity: 0.35;
+      .va-strip {
+        width: 4px;
+        height: 13px;
+        margin-right: 4px;
+        flex-shrink: 0;
       }
 
       .price-cell {
+        width: 62px;
+        text-align: right;
+        padding-right: 10px;
+        font-size: 11px;
+        flex-shrink: 0;
         font-family: monospace;
-        font-size: 12px;
-        letter-spacing: 0.03em;
         white-space: nowrap;
-      }
-
-      .price-cell.current {
-        color: var(--green);
-        font-weight: 700;
-      }
-      .price-cell.poc {
-        color: var(--amber);
-        font-weight: 700;
       }
 
       .bar-cell {
         position: relative;
-        min-height: 18px;
-        height: 18px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.02);
+        height: 13px;
+        width: 260px;
+        background: #1e293b;
+        border-radius: 2px;
         overflow: hidden;
-        display: flex;
-        align-items: center;
+        flex-shrink: 0;
       }
 
       .bar-segment {
+        position: absolute;
+        top: 0;
         height: 100%;
-        border-radius: 999px;
-        transition: width 0.2s ease;
       }
 
       .bar-indicator {
         position: absolute;
-        right: 0;
+        right: -1px;
         top: 50%;
         transform: translateY(-50%);
         width: 0;
         height: 0;
-        border-top: 5px solid transparent;
-        border-bottom: 5px solid transparent;
-        border-left: 6px solid var(--green);
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 5px solid #22c55e;
         pointer-events: none;
       }
 
@@ -380,30 +344,19 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
       }
 
-      .histogram-row {
-        position: relative;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        cursor: pointer;
-        transition:
-          background 0.2s ease,
-          opacity 0.2s ease;
-        touch-action: manipulation;
-        user-select: none;
-      }
-
-      .volume-cell,
-      .delta-cell {
-        text-align: right;
+      .volume-cell {
+        padding-left: 8px;
+        font-size: 10px;
+        min-width: 58px;
         font-family: monospace;
-        font-size: 12px;
         white-space: nowrap;
       }
 
-      .delta-cell.positive {
-        color: var(--blue);
-      }
-      .delta-cell.negative {
-        color: var(--red);
+      .delta-cell {
+        font-size: 9px;
+        min-width: 46px;
+        font-family: monospace;
+        white-space: nowrap;
       }
 
       .tooltip-card {
@@ -1250,46 +1203,38 @@
           </div>
 
           <div class="histogram-card">
-            <div class="histogram-header">
-              <span>PRICE</span>
-              <span>BAR</span>
-              <span>VOL</span>
-              <span>D%</span>
-            </div>
             <div id="histogram" aria-label="Histogram rows">
               ${summary.rows
                 .map((row) => {
                   const colors = getRowColors(row, summary);
-                  const totalWidth =
-                    state.mode === "VOL"
-                      ? Math.round(
-                          (row.total_volume / Math.max(summary.maxVol, 1)) *
-                            240,
-                        )
-                      : Math.round(
-                          (row.velocity / Math.max(summary.maxVel, 1)) * 240,
-                        );
-                  const leftWidth =
-                    state.mode === "VOL"
-                      ? Math.round(
-                          row.total_volume
-                            ? (row.bull_vol / row.total_volume) * totalWidth
-                            : 0,
-                        )
-                      : totalWidth;
-                  const rightWidth =
-                    state.mode === "VOL" ? totalWidth - leftWidth : 0;
-                  const isDisabled = state.mode === "VEL" && row.velocity === 0;
+                  const isCur = row.isCurrent;
+                  const isPoc = row.isPOC;
+                  const isVA  = row.isVA;
+                  const isHov = row.bucket === state.hoveredBucket;
+                  const opacity = state.hoveredBucket !== null && !isHov ? "0.35" : "1";
+                  const totalWidth = state.mode === "VOL"
+                    ? Math.round((row.total_volume / Math.max(summary.maxVol, 1)) * 260)
+                    : Math.round((row.velocity / Math.max(summary.maxVel, 1)) * 260);
+                  const bullW = state.mode === "VOL" && row.total_volume > 0
+                    ? Math.round((row.bull_vol / row.total_volume) * totalWidth)
+                    : totalWidth;
+                  const bearW = state.mode === "VOL" ? totalWidth - bullW : 0;
+                  const priceColor = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : isVA ? "#c4b5fd" : "#64748b";
+                  const priceFW   = isCur || isPoc ? "700" : "400";
+                  const volColor  = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : "#475569";
+                  const volFW     = isCur || isPoc ? "700" : "400";
+                  const deltaColor = state.mode === "VOL" ? (row.delta_pct > 0 ? "#3b82f6" : row.delta_pct < 0 ? "#ef4444" : "#475569") : "#475569";
                   return `
-                  <div class="histogram-row ${row.isCurrent ? "active" : ""}" data-bucket="${row.bucket}" data-disabled="${isDisabled ? "true" : "false"}">
-                    <div class="price-cell ${row.isCurrent ? "current" : row.isPOC ? "poc" : ""}" style="border-left: ${row.isVA ? "3px solid rgba(167,139,250,0.65)" : "3px solid transparent"}; padding-left: 8px;">${row.bucket.toFixed(1)}</div>
+                  <div class="histogram-row" data-bucket="${row.bucket}" style="opacity:${opacity}">
+                    <div class="va-strip" style="border-left:${isVA ? "2px solid rgba(167,139,250,0.4)" : "2px solid transparent"}; background:${isVA ? "rgba(167,139,250,0.13)" : "transparent"}"></div>
+                    <div class="price-cell" style="color:${priceColor}; font-weight:${priceFW}">${row.bucket.toFixed(1)}</div>
                     <div class="bar-cell">
-                      <div class="bar-segment" style="width:${leftWidth}px; background:${colors.left};"></div>
-                      ${state.mode === "VOL" ? `<div class="bar-segment" style="width:${rightWidth}px; background:${colors.right}; margin-left:${leftWidth}px;"></div>` : ""}
-                      ${row.isCurrent ? '<div class="bar-indicator"></div>' : ""}
+                      <div class="bar-segment" style="left:0; width:${bullW}px; background:${colors.left}; border-radius:2px 0 0 2px"></div>
+                      ${state.mode === "VOL" ? `<div class="bar-segment" style="left:${bullW}px; width:${bearW}px; background:${colors.right}; border-radius:${bearW > 0 ? "0 2px 2px 0" : "0"}"></div>` : ""}
+                      ${isCur ? '<div class="bar-indicator"></div>' : ""}
                     </div>
-                    <div class="volume-cell">${state.mode === "VOL" ? formatNumber(row.total_volume) : row.velocity > 0 ? row.velocity.toFixed(2) : "-"}</div>
-                    <div class="delta-cell ${row.delta_pct > 0 ? "positive" : row.delta_pct < 0 ? "negative" : ""}">${state.mode === "VOL" ? (row.delta_pct > 0 ? "+" : "") + row.delta_pct.toFixed(1) + "%" : row.velocity > 0 ? formatNumber(row.total_volume) : ""}</div>
+                    <div class="volume-cell" style="color:${volColor}; font-weight:${volFW}">${state.mode === "VOL" ? formatNumber(row.total_volume) : row.velocity > 0 ? row.velocity.toFixed(2) + "t/s" : "-"}</div>
+                    <div class="delta-cell" style="color:${deltaColor}">${state.mode === "VOL" ? (row.delta_pct > 0 ? "+" : "") + row.delta_pct.toFixed(1) + "%" : row.velocity > 0 ? formatNumber(row.total_volume) : ""}</div>
                   </div>
                 `;
                 })
