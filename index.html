@@ -869,7 +869,13 @@
         mode: "VOL",
         inputMode: "duration",
         durationMinutes: 240,
-        manualStart: "09:00",
+        manualStart: (() => {
+          const d = new Date(Date.now() - 5 * 3600 * 1000);
+          return new Intl.DateTimeFormat("en-GB", {
+            hour: "2-digit", minute: "2-digit",
+            timeZone: "Europe/Stockholm", hour12: false,
+          }).format(d);
+        })(),
         manualEnd: null,
         profile: SAMPLE_PROFILE,
         meta: SAMPLE_META,
@@ -1260,6 +1266,10 @@
         app.querySelectorAll("[data-input-mode]").forEach((btn) => {
           btn.addEventListener("click", () => {
             state.inputMode = btn.dataset.inputMode;
+            if (btn.dataset.inputMode === "time") {
+              state.manualStart = formatStockholm(new Date(Date.now() - 5 * 3600 * 1000));
+              state.manualEnd = null;
+            }
             render();
             loadProfile();
           });
