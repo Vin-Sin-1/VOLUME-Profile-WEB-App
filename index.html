@@ -483,7 +483,7 @@
       const SUPABASE_URL = "https://nyykpszexlxtapbnkxpw.supabase.co";
       const SUPABASE_ANON_KEY =
         "sb_publishable_1Qv50ww1Krv0_8-Tgtdn-g_ahEOIOoP";
-      const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       const instruments = {
         GC: { label: "GC", pattern: "GC%", bucketSize: 1.2 },
