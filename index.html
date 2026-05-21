@@ -250,7 +250,9 @@
         color: var(--text);
         font-size: 12px;
         font-weight: 700;
-        transition: opacity 0.2s ease, background 0.2s ease;
+        transition:
+          opacity 0.2s ease,
+          background 0.2s ease;
       }
 
       .refresh-button:disabled {
@@ -375,7 +377,7 @@
         width: 12px;
         height: 12px;
         border-radius: 4px;
-        border: 1px solid rgba(255,255,255,.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
       }
 
       .histogram-row {
@@ -479,7 +481,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.35.0/dist/supabase.min.js"></script>
     <script>
       const SUPABASE_URL = "https://nyykpszexlxtapbnkxpw.supabase.co";
-      const SUPABASE_ANON_KEY = "sb_publishable_1Qv50ww1Krv0_8-Tgtdn-g_ahEOIOoP";
+      const SUPABASE_ANON_KEY =
+        "sb_publishable_1Qv50ww1Krv0_8-Tgtdn-g_ahEOIOoP";
       const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       const instruments = {
@@ -1085,17 +1088,18 @@
         }, null)?.bucket;
         const pocBucket =
           state.mode === "VOL"
-            ? (meta?.poc
-                ? rows.find((r) => r.bucket === meta.poc)?.bucket || rows.reduce(
-                    (best, r) =>
-                      !best || r.total_volume > best.total_volume ? r : best,
-                    rows[0],
-                  ).bucket
-                : rows.reduce(
-                    (best, r) =>
-                      !best || r.total_volume > best.total_volume ? r : best,
-                    rows[0],
-                  ).bucket)
+            ? meta?.poc
+              ? rows.find((r) => r.bucket === meta.poc)?.bucket ||
+                rows.reduce(
+                  (best, r) =>
+                    !best || r.total_volume > best.total_volume ? r : best,
+                  rows[0],
+                ).bucket
+              : rows.reduce(
+                  (best, r) =>
+                    !best || r.total_volume > best.total_volume ? r : best,
+                  rows[0],
+                ).bucket
             : rows.reduce(
                 (best, r) => (!best || r.velocity > best.velocity ? r : best),
                 rows[0],
@@ -1203,20 +1207,24 @@
           </div>
 
           <div class="legend">
-            ${state.mode === "VOL" ? `
+            ${
+              state.mode === "VOL"
+                ? `
               <div class="legend-item"><span class="legend-swatch" style="background: var(--green)"></span>Current</div>
               <div class="legend-item"><span class="legend-swatch" style="background: var(--amber)"></span>POC</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(167,139,250,0.65); border-color: rgba(167,139,250,0.65);"></span>VA</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(239,68,68,0.8);"></span>Selling &lt;-8%</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(59,130,246,0.8);"></span>Buying &gt;+6%</div>
-            ` : `
+            `
+                : `
               <div class="legend-item"><span class="legend-swatch" style="background: var(--green)"></span>Current</div>
               <div class="legend-item"><span class="legend-swatch" style="background: var(--orange)"></span>vPOC</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(249,115,22,0.8);"></span>High &gt;60%</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(245,158,11,0.55);"></span>Med 30-60%</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(59,130,246,0.4);"></span>Low &lt;30%</div>
               <div class="legend-item"><span class="legend-swatch" style="background: rgba(30,41,59,0.18);"></span>Below P70</div>
-            `}
+            `
+            }
           </div>
 
           <div class="selectors">
@@ -1238,7 +1246,7 @@
                 )
                 .join("")}
             </div>
-            <button class="refresh-button" data-action="refresh" ${state.loading ? 'disabled' : ''}>${state.loading ? 'Refreshing…' : 'Refresh'}</button>
+            <button class="refresh-button" data-action="refresh" ${state.loading ? "disabled" : ""}>${state.loading ? "Refreshing…" : "Refresh"}</button>
           </div>
 
           <div class="histogram-card">
