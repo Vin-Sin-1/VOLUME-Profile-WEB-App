@@ -993,7 +993,6 @@
             rows: [],
             maxVol: 1,
             maxVel: 1,
-            p70: 0,
             vah: 0,
             val: 0,
             currentBucket: null,
@@ -1003,17 +1002,7 @@
         }
 
         const maxVol = Math.max(...rows.map((r) => r.total_volume));
-        const sortedVolumes = [...rows]
-          .map((r) => r.total_volume)
-          .sort((a, b) => a - b);
-        const p70 = sortedVolumes[Math.floor(sortedVolumes.length * 0.7)] || 0;
-
-        rows.forEach((r) => {
-          if (state.mode === "VEL" && r.total_volume < p70) {
-            r.velocity = 0;
-          }
-        });
-
+        // VEL shows raw ticks/sec for every bucket (the old P70 low-volume filter was removed).
         const maxVel = Math.max(...rows.map((r) => r.velocity));
         const velRows = rows.filter((r) => r.velocity > 0);
         const avgVel = velRows.length
@@ -1079,7 +1068,6 @@
           rows,
           maxVol,
           maxVel,
-          p70,
           vah,
           val,
           currentBucket,
@@ -1239,7 +1227,7 @@
           </div>
 
           <div class="footer note">
-            ${state.loading ? "Loading live volume profile…" : state.error ? `Unable to load live data: ${state.error}` : "VOL = volume at price · VEL = ticks/sec (P70 filter applied) · Bucket sizes: GC/ES 1.2, CL 0.12"}
+            ${state.loading ? "Loading live volume profile…" : state.error ? `Unable to load live data: ${state.error}` : "VOL = volume at price · VEL = ticks/sec · Bucket sizes: GC/ES 1.2, CL 0.12"}
           </div>
         </div>
       `;
