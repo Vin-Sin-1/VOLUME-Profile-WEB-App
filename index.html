@@ -499,9 +499,12 @@
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
       const instruments = {
-        GC: { label: "GC", pattern: "GC%", bucketSize: 1.2 },
-        CL: { label: "CL", pattern: "CL%", bucketSize: 0.12 },
-        ES: { label: "ES", pattern: "ES%", bucketSize: 1.2 },
+        GC: { label: "GC", pattern: "GC%", bucketSize: 1.2, brickSize: 4 },
+        CL: { label: "CL", pattern: "CL%", bucketSize: 0.12, brickSize: 4 },
+        ES: { label: "ES", pattern: "ES%", bucketSize: 1.2, brickSize: 4 },
+        // BTCUSD has no size-4 stream (its renko sizes are 40/60/90/120); the profile aggregates
+        // its finest brick (40) and buckets at $40 to match. See vsa-cockpit for the same fix.
+        BTCUSD: { label: "BTC", pattern: "BTCUSD%", bucketSize: 40, brickSize: 40 },
       };
 
 
@@ -1354,7 +1357,7 @@
             p_instrument: instrument.pattern,
             p_start_time: startTime.toISOString(),
             p_cutoff_time: cutoffTime.toISOString(),
-            p_brick_size: 4,
+            p_brick_size: instrument.brickSize ?? 4,
             p_bucket_size: instrument.bucketSize,
           });
 
