@@ -1381,6 +1381,24 @@
 
       render();
       window.addEventListener("load", loadProfile);
+
+      // Realtime doorbell — refresh the profile as new volume lands, instead of only on load/interaction.
+      // Debounced (get_volume_profile is a heavy RPC): coalesce bursts, at most ~one refresh per 3s.
+      let _profRing = null, _lastProf = 0;
+      function ringProfile() {
+        clearTimeout(_profRing);
+        const wait = Math.max(1200, 3000 - (Date.now() - _lastProf));
+        _profRing = setTimeout(() => { _lastProf = Date.now(); loadProfile(); }, wait);
+      }
+      supabase
+        .channel("vp-doorbell")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "renko_bricks" }, (p) => {
+          const inst = instruments[state.instrument];
+          if (!inst) return;
+          const root = (inst.pattern || "").replace("%", "");
+          if (root && p.new.instrument.startsWith(root) && p.new.brick_size === (inst.brickSize ?? 4)) ringProfile();
+        })
+        .subscribe();
     </script>
   </body>
 </html>
