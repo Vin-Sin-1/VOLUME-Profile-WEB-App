@@ -57,6 +57,12 @@
       }
       .rows button.active { color: var(--text); border-color: var(--muted); background: #263449; }
       .rows button.refresh { color: var(--gold); }
+      .rows.wavelen { align-items: center; }
+      .wavelen-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted); }
+      .wavelen-val {
+        font-size: 12px; font-weight: 600; color: var(--gold);
+        font-variant-numeric: tabular-nums; min-width: 92px; text-align: center;
+      }
       .chart-card {
         background: rgba(30, 41, 59, 0.35); border: 1px solid var(--border);
         border-radius: 12px; padding: 8px 0 8px 8px; margin-top: 6px;
@@ -122,10 +128,12 @@
       const MIN_W = 46; // px — touch-target floor for very short waves
       const MAX_W = 150;
 
+      // waveLen = minimum wave size (zigzag reversal amount) in price units.
+      // Defaults: 70 ticks per instrument (GC tick 0.1 → $7.00).
       const INSTRUMENTS = {
-        GC: { label: "GC", name: "GC JUN26", base: 4515.6, bucketSize: 1.2, dec: 1 },
-        CL: { label: "CL", name: "CL JUL26", base: 63.4, bucketSize: 0.12, dec: 2 },
-        ES: { label: "ES", name: "ES JUN26", base: 6210.0, bucketSize: 1.2, dec: 1 },
+        GC: { label: "GC", name: "GC JUN26", base: 4515.6, bucketSize: 1.2, dec: 1, tick: 0.1, waveLen: 7.0 },
+        CL: { label: "CL", name: "CL JUL26", base: 63.4, bucketSize: 0.12, dec: 2, tick: 0.01, waveLen: 0.7 },
+        ES: { label: "ES", name: "ES JUN26", base: 6210.0, bucketSize: 1.2, dec: 1, tick: 0.25, waveLen: 17.5 },
       };
       const WINDOWS = [
         { key: "1h", hours: 1 },
@@ -137,7 +145,10 @@
         { key: "NY", session: "ny" },
       ];
 
-      const state = { mode: "VOL", inst: "GC", win: "4h", seed: 7, data: null, sel: null };
+      const state = {
+        mode: "VOL", inst: "GC", win: "4h", seed: 7, data: null, sel: null,
+        waveLen: Object.fromEntries(Object.entries(INSTRUMENTS).map(([k, v]) => [k, v.waveLen])),
+      };
 
       // --- seeded RNG so the sample layout is stable across re-renders ----
       function mulberry32(a) {
@@ -152,7 +163,10 @@
       // --- sample payload, same shape as the future RPC --------------------
       function generateSample(instKey, seed) {
         const inst = INSTRUMENTS[instKey];
-        const rnd = mulberry32(seed * 1000 + instKey.charCodeAt(0));
+        const waveLen = state.waveLen[instKey];
+        // every wave spans at least waveLen (the zigzag reversal amount)
+        const minBuckets = Math.max(2, Math.round(waveLen / inst.bucketSize));
+        const rnd = mulberry32(seed * 1000 + instKey.charCodeAt(0) + Math.round(waveLen * 100));
         const waves = [];
         let t = Date.now() - 6.2 * 3600 * 1000; // ~6h of history
         let level = 0; // price offset from base, in buckets
@@ -160,10 +174,12 @@
 
         while (t < Date.now() - 60 * 1000) {
           const climax = rnd() < 0.14;
-          const nBuckets = climax ? 2 + Math.floor(rnd() * 4) : 3 + Math.floor(rnd() * 13);
+          const nBuckets = climax
+            ? minBuckets + Math.floor(rnd() * 2)
+            : minBuckets + Math.floor(rnd() * minBuckets * 1.6);
           const durMin = climax
-            ? 3 + rnd() * 6
-            : 6 + nBuckets * (1.5 + rnd() * 4);
+            ? 4 + rnd() * 8
+            : 8 + nBuckets * (2 + rnd() * 5);
           const volScale = climax ? 2600 + rnd() * 3400 : 500 + rnd() * 2400;
           const pocPos = 0.25 + rnd() * 0.5; // where inside the wave volume clusters
           const start = level;
@@ -229,6 +245,7 @@
             cutoff_price: last.end_price,
             cutoff_is_bull: last.dir === "up",
             wave_count: waves.length,
+            wave_size: waveLen,
             total_volume: waves.reduce((s, w) => s + w.total_volume, 0),
           },
           waves,
@@ -385,6 +402,12 @@
           <div class="rows">${WINDOWS.map(
             (w) => `<button data-win="${w.key}" class="${state.win === w.key ? "active" : ""}">${w.key}</button>`,
           ).join("")}<button class="refresh" data-refresh="1">↻</button></div>
+          <div class="rows wavelen">
+            <span class="wavelen-label">WAVE</span>
+            <button data-wl="-1">−</button>
+            <span class="wavelen-val">$${state.waveLen[state.inst].toFixed(INSTRUMENTS[state.inst].dec === 1 ? 1 : 2)} · ${Math.round(state.waveLen[state.inst] / INSTRUMENTS[state.inst].tick)}t</span>
+            <button data-wl="1">+</button>
+          </div>
           <div class="chart-card">
             <div class="chart-wrap">
               <div class="axis" style="height:${gridH}px">${ticks.join("")}</div>
@@ -441,6 +464,15 @@
           b.addEventListener("click", () => { state.win = b.dataset.win; state.sel = null; render(); }));
         app.querySelectorAll("[data-refresh]").forEach((b) =>
           b.addEventListener("click", () => { state.seed++; state.sel = null; load(); }));
+        app.querySelectorAll("[data-wl]").forEach((b) =>
+          b.addEventListener("click", () => {
+            const inst = INSTRUMENTS[state.inst];
+            const step = inst.tick * 10; // adjust by 10 ticks per press
+            const next = state.waveLen[state.inst] + step * +b.dataset.wl;
+            state.waveLen[state.inst] = Math.max(step, +next.toFixed(4));
+            state.sel = null;
+            load();
+          }));
         app.querySelectorAll(".hit").forEach((h) =>
           h.addEventListener("click", (e) => {
             e.stopPropagation();
