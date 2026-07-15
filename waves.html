@@ -43,6 +43,7 @@
         color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: 999px;
         padding: 2px 8px; margin-bottom: 8px;
       }
+      .sample-pill.live { color: var(--green); border-color: rgba(34, 197, 94, 0.45); }
       .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
       .pill {
         background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
@@ -86,6 +87,7 @@
       .wave-col.up .range { border-top: 2px solid rgba(34, 197, 94, 0.8); }
       .wave-col.dn .range { border-bottom: 2px solid rgba(239, 68, 68, 0.8); }
       .wave-col.selected .range { border-color: var(--gold); background: rgba(30, 41, 59, 0.85); }
+      .wave-col.dev .range { border-right: 1px dashed var(--muted); }
       .bar { position: absolute; left: 2px; border-radius: 0 3px 3px 0; }
       .hit { position: absolute; left: 0; right: 0; z-index: 2; }
       .hit.selected { outline: 1px solid var(--gold); border-radius: 3px; }
@@ -130,12 +132,17 @@
       const MIN_W = 46; // px — touch-target floor for very short waves
       const MAX_W = 150;
 
+      // Same self-hosted Supabase + anon key as index.html
+      const SB_URL = "https://desktop-5k8hiht.tail9252c1.ts.net";
+      const SB_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgzMjczNjY1LCJleHAiOjIwOTg2MzM2NjV9.ZR7RWqzrClxbA5KcrVWY5cKx_NZW70jpXz7Me-suJiM";
+
       // waveLen = minimum wave size (zigzag reversal amount) in price units.
       // Defaults: 70 ticks per instrument (GC tick 0.1 → $7.00).
       const INSTRUMENTS = {
-        GC: { label: "GC", name: "GC JUN26", base: 4515.6, bucketSize: 1.2, dec: 1, tick: 0.1, waveLen: 7.0 },
-        CL: { label: "CL", name: "CL JUL26", base: 63.4, bucketSize: 0.12, dec: 2, tick: 0.01, waveLen: 0.7 },
-        ES: { label: "ES", name: "ES JUN26", base: 6210.0, bucketSize: 1.2, dec: 1, tick: 0.25, waveLen: 17.5 },
+        GC: { label: "GC", name: "GC JUN26", pattern: "GC%", base: 4515.6, bucketSize: 1.2, dec: 1, tick: 0.1, waveLen: 7.0 },
+        CL: { label: "CL", name: "CL JUL26", pattern: "CL%", base: 63.4, bucketSize: 0.12, dec: 2, tick: 0.01, waveLen: 0.7 },
+        ES: { label: "ES", name: "ES JUN26", pattern: "ES%", base: 6210.0, bucketSize: 1.2, dec: 1, tick: 0.25, waveLen: 17.5 },
       };
       const WINDOWS = [
         { key: "1h", hours: 1 },
@@ -148,7 +155,7 @@
       ];
 
       const state = {
-        mode: "VOL", inst: "GC", win: "4h", seed: 7, data: null, sel: null,
+        mode: "VOL", inst: "GC", win: "4h", seed: 7, data: null, sel: null, live: false,
         waveLen: Object.fromEntries(Object.entries(INSTRUMENTS).map(([k, v]) => [k, v.waveLen])),
       };
 
@@ -372,7 +379,7 @@
             const hiRow = Math.min(...profile.map((r) => rowOf(r.bucket)));
             const loRow = Math.max(...profile.map((r) => rowOf(r.bucket)));
             return `
-              <div class="wave-col ${w.dir === "up" ? "up" : "dn"}${selW ? " selected" : ""}"
+              <div class="wave-col ${w.dir === "up" ? "up" : "dn"}${selW ? " selected" : ""}${w.developing ? " dev" : ""}"
                    data-wave="${w.id}" style="width:${width}px;height:${gridH + FOOT_H}px">
                 <div class="range" style="top:${hiRow * ROW_H}px;height:${(loRow - hiRow + 1) * ROW_H}px"></div>
                 ${bars}
@@ -380,7 +387,7 @@
                   <div class="dir ${w.dir === "up" ? "up" : "dn"}">${w.dir === "up" ? "▲" : "▼"} ${fmtDur(w.duration_s)}</div>
                   <div class="vol${topVol ? " top" : ""}">${fmtVol(w.total_volume)}</div>
                   <div>${w.velocity.toFixed(2)}t/s</div>
-                  <div class="d ${w.delta_pct >= 0 ? "pos" : "neg"}">${w.delta_pct > 0 ? "+" : ""}${w.delta_pct}%</div>
+                  <div class="d ${(w.delta_pct ?? 0) >= 0 ? "pos" : "neg"}">${w.delta_pct > 0 ? "+" : ""}${w.delta_pct ?? 0}%</div>
                 </div>
               </div>`;
           })
@@ -394,7 +401,9 @@
               <button data-mode="VEL" class="${state.mode === "VEL" ? "active" : ""}">VEL</button>
             </div>
           </div>
-          <span class="sample-pill">SAMPLE DATA · PHASE 1 PREVIEW</span>
+          ${state.live
+            ? '<span class="sample-pill live">LIVE · SELF-HOSTED SUPABASE</span>'
+            : '<span class="sample-pill">SAMPLE DATA · RPC UNREACHABLE OR NOT INSTALLED</span>'}
           <div class="pills">
             <div class="pill">LAST<b>${fmtPrice(meta.cutoff_price)}</b></div>
             <div class="pill">WAVES<b>${waves.length}</b></div>
@@ -466,7 +475,7 @@
         app.querySelectorAll("[data-inst]").forEach((b) =>
           b.addEventListener("click", () => { state.inst = b.dataset.inst; state.sel = null; load(); }));
         app.querySelectorAll("[data-win]").forEach((b) =>
-          b.addEventListener("click", () => { state.win = b.dataset.win; state.sel = null; render(); }));
+          b.addEventListener("click", () => { state.win = b.dataset.win; state.sel = null; load(); }));
         app.querySelectorAll("[data-refresh]").forEach((b) =>
           b.addEventListener("click", () => { state.seed++; state.sel = null; load(); }));
         app.querySelectorAll("[data-wl]").forEach((b) =>
@@ -497,8 +506,47 @@
           }));
       }
 
-      function load() {
-        state.data = generateSample(state.inst, state.seed);
+      // --- live data via get_wave_profiles RPC; sample fallback -------------
+      async function fetchLive() {
+        const inst = INSTRUMENTS[state.inst];
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        try {
+          const res = await fetch(SB_URL + "/rest/v1/rpc/get_wave_profiles", {
+            method: "POST",
+            headers: {
+              apikey: SB_KEY,
+              Authorization: "Bearer " + SB_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              p_instrument: inst.pattern,
+              p_start_time: windowStart(state.win).toISOString(),
+              p_cutoff_time: new Date().toISOString(),
+              p_brick_size: 4,
+              p_bucket_size: inst.bucketSize,
+              p_wave_size: state.waveLen[state.inst],
+            }),
+            signal: ctrl.signal,
+          });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          if (!data || !data.waves || !data.waves.length) throw new Error("no waves in window");
+          return data;
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
+      async function load() {
+        try {
+          state.data = await fetchLive();
+          state.live = true;
+        } catch (e) {
+          console.warn("live fetch failed, using sample data:", e.message);
+          state.data = generateSample(state.inst, state.seed);
+          state.live = false;
+        }
         render();
       }
       load();
