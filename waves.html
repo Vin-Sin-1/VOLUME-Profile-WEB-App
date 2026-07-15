@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1117" />
+    <title>Wave Profile</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #1e293b;
+        --border: #334155;
+        --text: #f1f5f9;
+        --muted: #64748b;
+        --gold: #fcd34d;
+        --green: #22c55e;
+        --red: #ef4444;
+        --amber: #f59e0b;
+        --purple: #a78bfa;
+        --orange: #f97316;
+        --blue: #3b82f6;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+        padding: 10px 10px calc(16px + env(safe-area-inset-bottom));
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .brand { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+      .brand .sub { color: var(--muted); font-weight: 500; font-size: 11px; display: block; }
+      .seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+      .seg button {
+        background: transparent; color: var(--muted); border: 0; font: inherit;
+        font-size: 12px; font-weight: 700; padding: 7px 14px; cursor: pointer;
+      }
+      .seg button.active { background: var(--panel); color: var(--text); }
+      .sample-pill {
+        display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+        color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.45); border-radius: 999px;
+        padding: 2px 8px; margin-bottom: 8px;
+      }
+      .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+      .pill {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+        padding: 4px 8px; font-size: 11px; color: var(--muted);
+      }
+      .pill b { color: var(--text); font-variant-numeric: tabular-nums; margin-left: 4px; }
+      .rows { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+      .rows button {
+        background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+        border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600;
+        padding: 6px 10px; cursor: pointer; min-width: 40px;
+      }
+      .rows button.active { color: var(--text); border-color: var(--muted); background: #263449; }
+      .rows button.refresh { color: var(--gold); }
+      .chart-card {
+        background: rgba(30, 41, 59, 0.35); border: 1px solid var(--border);
+        border-radius: 12px; padding: 8px 0 8px 8px; margin-top: 6px;
+      }
+      .chart-wrap { display: flex; }
+      .axis { flex: 0 0 52px; position: relative; }
+      .axis .tick {
+        position: absolute; right: 6px; transform: translateY(-50%);
+        font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+      }
+      .waves-scroll { flex: 1; overflow-x: auto; overscroll-behavior-x: contain; }
+      .waves-inner { position: relative; display: inline-flex; gap: 5px; padding-right: 8px; }
+      .gridline { position: absolute; left: 0; right: 0; height: 1px; background: rgba(51, 65, 85, 0.35); pointer-events: none; }
+      .lastline { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed rgba(34, 197, 94, 0.7); pointer-events: none; z-index: 3; }
+      .wave-col {
+        position: relative; border-radius: 6px; cursor: pointer;
+        background: rgba(30, 41, 59, 0.4); border: 1px solid transparent;
+      }
+      .wave-col.up { border-top: 2px solid rgba(34, 197, 94, 0.75); }
+      .wave-col.dn { border-top: 2px solid rgba(239, 68, 68, 0.75); }
+      .wave-col.selected { border-color: var(--gold); background: rgba(30, 41, 59, 0.75); }
+      .bar { position: absolute; left: 2px; border-radius: 0 3px 3px 0; }
+      .hit { position: absolute; left: 0; right: 0; z-index: 2; }
+      .hit.selected { outline: 1px solid var(--gold); border-radius: 3px; }
+      .wave-foot {
+        position: absolute; left: 0; right: 0; bottom: 0; text-align: center;
+        font-size: 9px; line-height: 1.35; color: var(--muted);
+        font-variant-numeric: tabular-nums; border-top: 1px solid rgba(51, 65, 85, 0.6);
+        padding-top: 3px; pointer-events: none;
+      }
+      .wave-foot .dir { font-size: 10px; font-weight: 700; }
+      .wave-foot .dir.up { color: var(--green); }
+      .wave-foot .dir.dn { color: var(--red); }
+      .wave-foot .vol { color: var(--text); font-weight: 600; }
+      .wave-foot .vol.top { color: var(--gold); }
+      .wave-foot .d.pos { color: var(--blue); }
+      .wave-foot .d.neg { color: var(--red); }
+      .detail {
+        margin-top: 8px; background: var(--panel); border: 1px solid var(--border);
+        border-radius: 12px; padding: 10px 12px;
+      }
+      .detail .title { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--gold); margin-bottom: 6px; }
+      .detail .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px 10px; }
+      .detail .f { font-size: 11px; }
+      .detail .f span { display: block; color: var(--muted); font-size: 9px; letter-spacing: 0.06em; }
+      .detail .f b { font-variant-numeric: tabular-nums; font-weight: 600; }
+      .hint { color: var(--muted); font-size: 11px; margin-top: 8px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      "use strict";
+
+      // ------------------------------------------------------------------
+      // Phase 1 prototype: renders SAMPLE wave data shaped exactly like the
+      // planned get_wave_profiles() RPC. No network calls yet.
+      // ------------------------------------------------------------------
+
+      const ROW_H = 13; // px per price bucket row
+      const FOOT_H = 56; // px reserved under each wave for its stats
+      const PX_PER_MIN = 1.15; // wave column width scale
+      const MIN_W = 46; // px — touch-target floor for very short waves
+      const MAX_W = 150;
+
+      const INSTRUMENTS = {
+        GC: { label: "GC", name: "GC JUN26", base: 4515.6, bucketSize: 1.2, dec: 1 },
+        CL: { label: "CL", name: "CL JUL26", base: 63.4, bucketSize: 0.12, dec: 2 },
+        ES: { label: "ES", name: "ES JUN26", base: 6210.0, bucketSize: 1.2, dec: 1 },
+      };
+      const WINDOWS = [
+        { key: "1h", hours: 1 },
+        { key: "2h", hours: 2 },
+        { key: "3h", hours: 3 },
+        { key: "4h", hours: 4 },
+        { key: "5h", hours: 5 },
+        { key: "LDN", session: "london" },
+        { key: "NY", session: "ny" },
+      ];
+
+      const state = { mode: "VOL", inst: "GC", win: "4h", seed: 7, data: null, sel: null };
+
+      // --- seeded RNG so the sample layout is stable across re-renders ----
+      function mulberry32(a) {
+        return function () {
+          a |= 0; a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      // --- sample payload, same shape as the future RPC --------------------
+      function generateSample(instKey, seed) {
+        const inst = INSTRUMENTS[instKey];
+        const rnd = mulberry32(seed * 1000 + instKey.charCodeAt(0));
+        const waves = [];
+        let t = Date.now() - 6.2 * 3600 * 1000; // ~6h of history
+        let level = 0; // price offset from base, in buckets
+        let dir = rnd() > 0.5 ? 1 : -1;
+
+        while (t < Date.now() - 60 * 1000) {
+          const climax = rnd() < 0.14;
+          const nBuckets = climax ? 2 + Math.floor(rnd() * 4) : 3 + Math.floor(rnd() * 13);
+          const durMin = climax
+            ? 3 + rnd() * 6
+            : 6 + nBuckets * (1.5 + rnd() * 4);
+          const volScale = climax ? 2600 + rnd() * 3400 : 500 + rnd() * 2400;
+          const pocPos = 0.25 + rnd() * 0.5; // where inside the wave volume clusters
+          const start = level;
+          const end = level + dir * nBuckets;
+          const lo = Math.min(start, end);
+          const durS = Math.round(durMin * 60);
+
+          const profile = [];
+          let totalVol = 0;
+          for (let i = 0; i <= nBuckets; i++) {
+            const x = i / nBuckets - pocPos;
+            const w = Math.exp(-(x * x) / 0.09) + 0.12 + rnd() * 0.25;
+            const vol = Math.max(6, Math.round(w * volScale * (0.28 + rnd() * 0.2)));
+            const bullShare = dir > 0 ? 0.55 + rnd() * 0.22 : 0.23 + rnd() * 0.22;
+            // mostly neutral deltas; occasional strong buy/sell bucket (the signal)
+            let buyBias = (dir > 0 ? 1 : -1) * (0.005 + rnd() * 0.02) + (rnd() - 0.5) * 0.045;
+            if (rnd() < 0.16) buyBias += (rnd() > 0.5 ? 1 : -1) * (0.05 + rnd() * 0.06);
+            const buy = Math.round(vol * Math.min(0.85, Math.max(0.15, 0.5 + buyBias)));
+            const bucketPrice = inst.base + (lo + i) * inst.bucketSize;
+            profile.push({
+              bucket: +bucketPrice.toFixed(inst.dec === 1 ? 1 : 2),
+              total_volume: vol,
+              brick_count: Math.max(1, Math.round(vol / 9)),
+              bull_vol: Math.round(vol * bullShare),
+              bear_vol: vol - Math.round(vol * bullShare),
+              buy_vol: buy,
+              sell_vol: vol - buy,
+              net_delta: buy - (vol - buy),
+              delta_pct: +(((2 * buy - vol) / vol) * 100).toFixed(1),
+              velocity: +(vol / durS).toFixed(2),
+            });
+            totalVol += vol;
+          }
+          const poc = profile.reduce((b, r) => (r.total_volume > b.total_volume ? r : b)).bucket;
+          const netDelta = profile.reduce((s, r) => s + r.net_delta, 0);
+          waves.push({
+            id: waves.length,
+            dir: dir > 0 ? "up" : "down",
+            start_time: new Date(t).toISOString(),
+            end_time: new Date(t + durS * 1000).toISOString(),
+            duration_s: durS,
+            start_price: +(inst.base + start * inst.bucketSize).toFixed(2),
+            end_price: +(inst.base + end * inst.bucketSize).toFixed(2),
+            total_volume: totalVol,
+            brick_count: profile.reduce((s, r) => s + r.brick_count, 0),
+            velocity: +(totalVol / durS).toFixed(2),
+            poc,
+            net_delta: netDelta,
+            delta_pct: +((netDelta / totalVol) * 100).toFixed(1),
+            profile,
+          });
+          t += durS * 1000 + (30 + rnd() * 200) * 1000;
+          level = end;
+          dir = -dir;
+        }
+
+        const last = waves[waves.length - 1];
+        return {
+          meta: {
+            instrument: inst.name,
+            bucket_size: inst.bucketSize,
+            brick_size: 4,
+            cutoff_price: last.end_price,
+            cutoff_is_bull: last.dir === "up",
+            wave_count: waves.length,
+            total_volume: waves.reduce((s, w) => s + w.total_volume, 0),
+          },
+          waves,
+        };
+      }
+
+      // --- window filtering (mirrors the session windows of index.html) ----
+      function windowStart(winKey) {
+        const w = WINDOWS.find((x) => x.key === winKey);
+        const now = new Date();
+        if (w.hours) return new Date(now - w.hours * 3600 * 1000);
+        const d = new Date(now);
+        d.setUTCHours(w.session === "london" ? 8 : 13, w.session === "london" ? 0 : 30, 0, 0);
+        if (d > now) d.setUTCDate(d.getUTCDate() - 1);
+        return d;
+      }
+      function visibleWaves() {
+        const cut = windowStart(state.win).getTime();
+        return state.data.waves.filter((w) => new Date(w.end_time).getTime() >= cut);
+      }
+
+      // --- P70 filter, applied PER WAVE (skipped for stub waves) -----------
+      function applyP70(wave) {
+        const out = wave.profile.map((r) => ({ ...r }));
+        if (out.length < 6) return out;
+        const sorted = out.map((r) => r.total_volume).sort((a, b) => a - b);
+        const p70 = sorted[Math.floor(sorted.length * 0.7)];
+        out.forEach((r) => { if (r.total_volume < p70) r.velocity = 0; });
+        return out;
+      }
+
+      // --- formatting -------------------------------------------------------
+      const fmtVol = (v) => (v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v));
+      const fmtDur = (s) => (s >= 3600 ? (s / 3600).toFixed(1) + "h" : Math.round(s / 60) + "m");
+      const fmtPrice = (p) => p.toFixed(INSTRUMENTS[state.inst].dec);
+      const fmtTime = (iso) =>
+        new Date(iso).toLocaleTimeString("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+
+      // --- bar colors: same semantics as index.html -------------------------
+      function barColor(row, wave, isLastPrice) {
+        if (state.mode === "VOL") {
+          if (isLastPrice) return "rgba(34,197,94,0.95)";
+          if (row.bucket === wave.poc) return "rgba(245,158,11,0.92)";
+          if (row.delta_pct < -8) return "rgba(239,68,68,0.85)";
+          if (row.delta_pct > 6) return "rgba(59,130,246,0.85)";
+          return "rgba(100,116,139,0.55)";
+        }
+        if (row.velocity === 0) return null; // below P70 → invisible
+        const pct = row.velocity / Math.max(wave._maxVel, 0.01);
+        if (pct > 0.6) return "rgba(249,115,22,0.85)";
+        if (pct > 0.3) return "rgba(245,158,11,0.55)";
+        return "rgba(59,130,246,0.4)";
+      }
+
+      // --- render ------------------------------------------------------------
+      const app = document.getElementById("app");
+
+      function render() {
+        const meta = state.data.meta;
+        const waves = visibleWaves();
+        const bs = meta.bucket_size;
+
+        // shared global price grid across all visible waves
+        let minB = Infinity, maxB = -Infinity, maxWaveVol = 0;
+        for (const w of waves) {
+          for (const r of w.profile) {
+            if (r.bucket < minB) minB = r.bucket;
+            if (r.bucket > maxB) maxB = r.bucket;
+          }
+          if (w.total_volume > maxWaveVol) maxWaveVol = w.total_volume;
+        }
+        const nRows = Math.round((maxB - minB) / bs) + 1;
+        const gridH = nRows * ROW_H;
+        const labelStep = Math.max(1, Math.ceil(nRows / 14));
+        const rowOf = (bucket) => Math.round((maxB - bucket) / bs);
+
+        const ticks = [];
+        for (let i = 0; i < nRows; i += labelStep) {
+          const price = maxB - i * bs;
+          ticks.push(
+            `<div class="tick" style="top:${i * ROW_H + ROW_H / 2}px">${fmtPrice(price)}</div>`,
+            `<div class="gridline" style="top:${i * ROW_H + ROW_H / 2}px"></div>`,
+          );
+        }
+
+        const lastRow = rowOf(
+          waves.length
+            ? waves[waves.length - 1].profile.reduce((b, r) =>
+                Math.abs(r.bucket - meta.cutoff_price) < Math.abs(b.bucket - meta.cutoff_price) ? r : b,
+              ).bucket
+            : maxB,
+        );
+
+        const cols = waves
+          .map((w) => {
+            const width = Math.max(MIN_W, Math.min(MAX_W, (w.duration_s / 60) * PX_PER_MIN));
+            const profile = state.mode === "VEL" ? applyP70(w) : w.profile;
+            w._maxVel = Math.max(...profile.map((r) => r.velocity));
+            const maxMetric =
+              state.mode === "VOL"
+                ? Math.max(...profile.map((r) => r.total_volume))
+                : Math.max(w._maxVel, 0.01);
+            const isLastWave = w.id === state.data.waves[state.data.waves.length - 1].id;
+
+            const bars = profile
+              .map((r, i) => {
+                const isLastPrice = isLastWave && rowOf(r.bucket) === lastRow;
+                const color = barColor(r, w, isLastPrice);
+                const metric = state.mode === "VOL" ? r.total_volume : r.velocity;
+                const pct = Math.max(0.04, metric / maxMetric);
+                const top = rowOf(r.bucket) * ROW_H;
+                const bar = color
+                  ? `<div class="bar" style="top:${top + 1.5}px;height:${ROW_H - 3}px;width:calc(${(pct * 92).toFixed(1)}% - 2px);background:${color}"></div>`
+                  : "";
+                const selB = state.sel && state.sel.type === "bucket" && state.sel.wave === w.id && state.sel.i === i;
+                return bar + `<div class="hit${selB ? " selected" : ""}" data-wave="${w.id}" data-i="${i}" style="top:${top}px;height:${ROW_H}px"></div>`;
+              })
+              .join("");
+
+            const selW = state.sel && state.sel.type === "wave" && state.sel.wave === w.id;
+            const topVol = w.total_volume === maxWaveVol;
+            return `
+              <div class="wave-col ${w.dir === "up" ? "up" : "dn"}${selW ? " selected" : ""}"
+                   data-wave="${w.id}" style="width:${width}px;height:${gridH + FOOT_H}px">
+                ${bars}
+                <div class="wave-foot">
+                  <div class="dir ${w.dir === "up" ? "up" : "dn"}">${w.dir === "up" ? "▲" : "▼"} ${fmtDur(w.duration_s)}</div>
+                  <div class="vol${topVol ? " top" : ""}">${fmtVol(w.total_volume)}</div>
+                  <div>${w.velocity.toFixed(2)}t/s</div>
+                  <div class="d ${w.delta_pct >= 0 ? "pos" : "neg"}">${w.delta_pct > 0 ? "+" : ""}${w.delta_pct}%</div>
+                </div>
+              </div>`;
+          })
+          .join("");
+
+        app.innerHTML = `
+          <div class="header">
+            <div class="brand">Wave Profile<span class="sub">${meta.instrument} · ${state.win} · Stockholm time</span></div>
+            <div class="seg">
+              <button data-mode="VOL" class="${state.mode === "VOL" ? "active" : ""}">VOL</button>
+              <button data-mode="VEL" class="${state.mode === "VEL" ? "active" : ""}">VEL</button>
+            </div>
+          </div>
+          <span class="sample-pill">SAMPLE DATA · PHASE 1 PREVIEW</span>
+          <div class="pills">
+            <div class="pill">LAST<b>${fmtPrice(meta.cutoff_price)}</b></div>
+            <div class="pill">WAVES<b>${waves.length}</b></div>
+            <div class="pill">VOL<b>${fmtVol(waves.reduce((s, w) => s + w.total_volume, 0))}</b></div>
+            <div class="pill">LAST Δ<b>${waves.length ? (waves[waves.length - 1].delta_pct > 0 ? "+" : "") + waves[waves.length - 1].delta_pct + "%" : "-"}</b></div>
+          </div>
+          <div class="rows">${Object.keys(INSTRUMENTS)
+            .map((k) => `<button data-inst="${k}" class="${state.inst === k ? "active" : ""}">${k}</button>`)
+            .join("")}</div>
+          <div class="rows">${WINDOWS.map(
+            (w) => `<button data-win="${w.key}" class="${state.win === w.key ? "active" : ""}">${w.key}</button>`,
+          ).join("")}<button class="refresh" data-refresh="1">↻</button></div>
+          <div class="chart-card">
+            <div class="chart-wrap">
+              <div class="axis" style="height:${gridH}px">${ticks.join("")}</div>
+              <div class="waves-scroll">
+                <div class="waves-inner" style="height:${gridH + FOOT_H}px">
+                  <div class="lastline" style="top:${lastRow * ROW_H + ROW_H / 2}px"></div>
+                  ${cols}
+                </div>
+              </div>
+            </div>
+          </div>
+          ${renderDetail(waves)}
+          <div class="hint">tap a wave for stats · tap a price row inside a wave for bucket detail</div>`;
+
+        const scroll = app.querySelector(".waves-scroll");
+        scroll.scrollLeft = scroll.scrollWidth; // newest wave in view
+        wire();
+      }
+
+      function renderDetail(waves) {
+        if (!state.sel) return "";
+        const w = state.data.waves.find((x) => x.id === state.sel.wave);
+        if (!w || !waves.includes(w)) return "";
+        const f = (label, val) => `<div class="f"><span>${label}</span><b>${val}</b></div>`;
+        if (state.sel.type === "wave") {
+          return `<div class="detail">
+            <div class="title">${w.dir === "up" ? "▲ UP" : "▼ DOWN"} WAVE · ${fmtTime(w.start_time)}–${fmtTime(w.end_time)}</div>
+            <div class="grid">
+              ${f("FROM", fmtPrice(w.start_price))}${f("TO", fmtPrice(w.end_price))}
+              ${f("DUR", fmtDur(w.duration_s))}${f("VOL", fmtVol(w.total_volume))}
+              ${f("VEL", w.velocity.toFixed(2) + "t/s")}${f("BRICKS", w.brick_count)}
+              ${f("POC", fmtPrice(w.poc))}${f("DELTA", w.net_delta)}
+              ${f("D%", (w.delta_pct > 0 ? "+" : "") + w.delta_pct + "%")}
+            </div></div>`;
+        }
+        const r = w.profile[state.sel.i];
+        return `<div class="detail">
+          <div class="title">BUCKET ${fmtPrice(r.bucket)} · ${w.dir === "up" ? "▲" : "▼"} wave ${fmtTime(w.start_time)}</div>
+          <div class="grid">
+            ${f("PRICE", fmtPrice(r.bucket))}${f("VEL", r.velocity.toFixed(2) + "t/s")}
+            ${f("VOL", fmtVol(r.total_volume))}${f("BRICKS", r.brick_count)}
+            ${f("BUY", fmtVol(r.buy_vol))}${f("SELL", fmtVol(r.sell_vol))}
+            ${f("BULL", fmtVol(r.bull_vol))}${f("BEAR", fmtVol(r.bear_vol))}
+            ${f("DELTA", r.net_delta)}${f("D%", (r.delta_pct > 0 ? "+" : "") + r.delta_pct + "%")}
+          </div></div>`;
+      }
+
+      function wire() {
+        app.querySelectorAll("[data-mode]").forEach((b) =>
+          b.addEventListener("click", () => { state.mode = b.dataset.mode; render(); }));
+        app.querySelectorAll("[data-inst]").forEach((b) =>
+          b.addEventListener("click", () => { state.inst = b.dataset.inst; state.sel = null; load(); }));
+        app.querySelectorAll("[data-win]").forEach((b) =>
+          b.addEventListener("click", () => { state.win = b.dataset.win; state.sel = null; render(); }));
+        app.querySelectorAll("[data-refresh]").forEach((b) =>
+          b.addEventListener("click", () => { state.seed++; state.sel = null; load(); }));
+        app.querySelectorAll(".hit").forEach((h) =>
+          h.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const wave = +h.dataset.wave, i = +h.dataset.i;
+            state.sel =
+              state.sel && state.sel.type === "bucket" && state.sel.wave === wave && state.sel.i === i
+                ? null
+                : { type: "bucket", wave, i };
+            render();
+          }));
+        app.querySelectorAll(".wave-col").forEach((c) =>
+          c.addEventListener("click", () => {
+            const wave = +c.dataset.wave;
+            state.sel =
+              state.sel && state.sel.type === "wave" && state.sel.wave === wave ? null : { type: "wave", wave };
+            render();
+          }));
+      }
+
+      function load() {
+        state.data = generateSample(state.inst, state.seed);
+        render();
+      }
+      load();
+    </script>
+  </body>
+</html>
