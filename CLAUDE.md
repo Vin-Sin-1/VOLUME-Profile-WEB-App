@@ -13,9 +13,16 @@ Trades MGC (Gold Micro) and CL (WTI Crude Oil) using VSA + Wyckoff methodology.
 
 ## Supabase Connection
 
-**Project ID:** nyykpszexlxtapbnkxpw
-**Project URL:** https://nyykpszexlxtapbnkxpw.supabase.co
-**Anon key:** copy from existing charts app
+Live source is a **self-hosted Supabase** exposed via a Tailscale Funnel (as configured in
+`index.html`). It is only reachable from the trader's own network / the funnel — not from
+sandboxed CI or agent environments with restricted egress.
+
+**URL:** https://desktop-5k8hiht.tail9252c1.ts.net
+**Anon key:** in `index.html` (`SUPABASE_ANON_KEY`) — public by design (RLS-gated anon role).
+
+> **Retired:** the old Supabase Cloud project `nyykpszexlxtapbnkxpw`
+> (`https://nyykpszexlxtapbnkxpw.supabase.co`, "OHLC Database") is **paused/no longer used**.
+> The live pipeline moved to the self-hosted instance above; ignore the cloud project.
 
 ### Core RPC Function
 ```
