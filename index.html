@@ -23,7 +23,7 @@
         --border: #334155;
         --border-soft: #17202a;
         --text: #f1f5f9;
-        --muted: #64748b;
+        --muted: #94a3b8;
         --gold: #fcd34d;
         --green: #22c55e;
         --red: #ef4444;
@@ -556,7 +556,7 @@
       }
 
       .note {
-        color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.62);
         font-size: 11px;
         line-height: 1.6;
       }
@@ -1508,9 +1508,9 @@
                   const totalWidth = state.mode === "VOL"
                     ? Math.round((row.total_volume / Math.max(summary.maxVol, 1)) * 260)
                     : Math.round((row.velocity / Math.max(summary.maxVel, 1)) * 260);
-                  const priceColor = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : isVA ? "#c4b5fd" : "#64748b";
-                  const priceFW   = isCur || isPoc ? "700" : "400";
-                  const volColor  = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : "#475569";
+                  const priceColor = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : isVA ? "#c4b5fd" : "#cbd5e1";
+                  const priceFW   = isCur || isPoc ? "700" : "500";
+                  const volColor  = isCur ? "#22c55e" : isPoc ? (state.mode === "VOL" ? "#f59e0b" : "#f97316") : "#cbd5e1";
                   const volFW     = isCur || isPoc ? "700" : "400";
                   return `
                   <div class="histogram-row" data-bucket="${row.bucket}">
@@ -1521,7 +1521,7 @@
                       ${isCur ? '<div class="bar-indicator"></div>' : ""}
                     </div>
                     <div class="volume-cell" style="color:${volColor}; font-weight:${volFW}">${state.mode === "VOL" ? formatNumber(row.total_volume) : row.velocity > 0 ? row.velocity.toFixed(2) + "t/s" : "-"}</div>
-                    <div class="delta-cell" style="color:#475569">${state.mode === "VOL" ? "" : row.velocity > 0 ? formatNumber(row.total_volume) : ""}</div>
+                    <div class="delta-cell" style="color:#94a3b8">${state.mode === "VOL" ? "" : row.velocity > 0 ? formatNumber(row.total_volume) : ""}</div>
                   </div>
                 `;
                 })
