@@ -363,6 +363,9 @@
         display: flex;
         flex-direction: column;
         gap: 5px;
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
       }
 
       .time-tabs {
@@ -458,6 +461,91 @@
         flex-shrink: 0;
         user-select: none;
         min-width: 42px;
+      }
+
+      .session-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .session-quick {
+        display: flex;
+        gap: 6px;
+      }
+
+      .sess-chip {
+        flex: 1;
+        padding: 9px 10px;
+        border-radius: 10px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .sess-chip.active {
+        background: var(--panel-strong);
+        color: var(--text);
+        border-color: var(--gold);
+      }
+
+      .sess-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .sess-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        min-width: 34px;
+        flex-shrink: 0;
+        user-select: none;
+      }
+
+      .sess-scroll {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .sess-pick {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 66px;
+        line-height: 1.15;
+        padding: 6px 10px !important;
+      }
+
+      .sess-pick .sp-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: inherit;
+      }
+
+      .sess-pick .sp-when {
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .sess-pick.active {
+        border-color: var(--gold);
+      }
+
+      .sess-pick.active .sp-when {
+        color: var(--text);
       }
 
       .status-bar {
@@ -870,7 +958,11 @@
       const state = {
         instrument: "GC",
         mode: "VOL",
-        inputMode: "duration",
+        inputMode: "session",
+        // Session range picker
+        sessionQuick: "current", // "current" | "prev4h" | null (null = From/To range)
+        sessionStartIdx: 1, // 1 = most recent completed session, up to SESSION_LOOKBACK
+        sessionEndIdx: null, // null = through most recent completed (excludes current session)
         durationMinutes: 240,
         manualStart: (() => {
           const stkHour = parseInt(
@@ -954,7 +1046,112 @@
         return new Date(Date.UTC(y, mo - 1, d, hh - offsetHours, mm, 0, 0));
       }
 
+      // ---- Trading sessions (fixed UTC boundaries, 3 contiguous sessions/day) ----
+      // Asia 00:00–08:00, London 08:00–13:30, NY 13:30–24:00 (all UTC). Labels rendered in Stockholm time.
+      const SESSION_DEFS = [
+        { name: "Asia", startMin: 0 },
+        { name: "London", startMin: 8 * 60 },
+        { name: "NY", startMin: 13 * 60 + 30 },
+      ];
+      const SESSION_LOOKBACK = 8; // how many previous sessions to list
+
+      function sessionStartDate(baseDate, idx) {
+        const d = new Date(
+          Date.UTC(
+            baseDate.getUTCFullYear(),
+            baseDate.getUTCMonth(),
+            baseDate.getUTCDate(),
+            0,
+            0,
+            0,
+            0,
+          ),
+        );
+        d.setUTCMinutes(SESSION_DEFS[idx].startMin);
+        return d;
+      }
+
+      // Which session (name + start Date + index) contains a given instant.
+      function sessionInfoAt(date) {
+        const utcMin = date.getUTCHours() * 60 + date.getUTCMinutes();
+        let idx = 0;
+        for (let i = 0; i < SESSION_DEFS.length; i++) {
+          if (utcMin >= SESSION_DEFS[i].startMin) idx = i;
+        }
+        return {
+          name: SESSION_DEFS[idx].name,
+          start: sessionStartDate(date, idx),
+          idx,
+        };
+      }
+
+      function prevSessionInfo(info) {
+        const prevIdx =
+          (info.idx - 1 + SESSION_DEFS.length) % SESSION_DEFS.length;
+        const base = new Date(info.start);
+        if (prevIdx === SESSION_DEFS.length - 1) {
+          base.setUTCDate(base.getUTCDate() - 1);
+        }
+        return {
+          name: SESSION_DEFS[prevIdx].name,
+          start: sessionStartDate(base, prevIdx),
+          idx: prevIdx,
+        };
+      }
+
+      // Ordered list: index 0 = current (in-progress) session, 1 = most recent
+      // completed session, ... Each entry carries start + end (next session's start).
+      function buildSessions(count) {
+        const list = [];
+        let info = sessionInfoAt(new Date());
+        let next = null; // start of the following session
+        for (let i = 0; i <= count; i++) {
+          const entry = {
+            name: info.name,
+            start: info.start,
+            end: next || new Date(), // current session's "end" is now
+            isCurrent: i === 0,
+          };
+          list.push(entry);
+          next = info.start;
+          info = prevSessionInfo(info);
+        }
+        return list;
+      }
+
+      function sessionWhen(date) {
+        // Stockholm weekday + HH:mm, e.g. "Mon 15:30"
+        return new Intl.DateTimeFormat("en-GB", {
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: "Europe/Stockholm",
+          hour12: false,
+        }).format(date);
+      }
+
+      function getSessionWindow() {
+        const sessions = buildSessions(SESSION_LOOKBACK);
+        if (state.sessionQuick === "current") {
+          return { start: sessions[0].start, end: new Date(), sessions };
+        }
+        if (state.sessionQuick === "prev4h") {
+          return {
+            start: new Date(Date.now() - 4 * 60 * 60 * 1000),
+            end: new Date(),
+            sessions,
+          };
+        }
+        const si = Math.min(state.sessionStartIdx, sessions.length - 1);
+        // End: null -> through most recent completed session (excludes current).
+        const ei = state.sessionEndIdx != null ? state.sessionEndIdx : 1;
+        return { start: sessions[si].start, end: sessions[ei].end, sessions };
+      }
+
       function getStartTime() {
+        if (state.inputMode === "session") {
+          return getSessionWindow().start;
+        }
         if (state.inputMode === "duration") {
           return new Date(Date.now() - state.durationMinutes * 60 * 1000);
         }
@@ -962,6 +1159,9 @@
       }
 
       function getCutoffTime() {
+        if (state.inputMode === "session") {
+          return getSessionWindow().end;
+        }
         if (state.inputMode === "duration" || !state.manualEnd) {
           return new Date();
         }
@@ -971,6 +1171,19 @@
       function getSessionLabel() {
         const start = getStartTime();
         const end = getCutoffTime();
+        if (state.inputMode === "session") {
+          const { sessions } = getSessionWindow();
+          if (state.sessionQuick === "current") {
+            return `${sessions[0].name} (current) · ${sessionWhen(start)}–Now`;
+          }
+          if (state.sessionQuick === "prev4h") {
+            return `Prev 4h · ${formatStockholm(start)}–${formatStockholm(end)}`;
+          }
+          const si = Math.min(state.sessionStartIdx, sessions.length - 1);
+          const ei = state.sessionEndIdx != null ? state.sessionEndIdx : 1;
+          const span = si === ei ? sessions[si].name : `${sessions[si].name}→${sessions[ei].name}`;
+          return `${span} · ${sessionWhen(start)}–${sessionWhen(end)}`;
+        }
         if (state.inputMode === "duration") {
           return `${formatDuration(state.durationMinutes)} · ${formatStockholm(start)}–${formatStockholm(end)}`;
         }
@@ -1133,6 +1346,58 @@
         return { left: "rgba(59,130,246,0.4)", right: "rgba(59,130,246,0.4)" };
       }
 
+      function renderSessionBlock() {
+        const sessions = buildSessions(SESSION_LOOKBACK);
+        const isRange = !state.sessionQuick;
+        const si = Math.min(state.sessionStartIdx, sessions.length - 1);
+
+        // "From" options: previous completed sessions (index 1..lookback).
+        const fromChips = sessions
+          .slice(1)
+          .map((s, i) => {
+            const idx = i + 1;
+            const active = isRange && si === idx;
+            return `
+              <button class="sess-pick ${active ? "active" : ""}" data-sess-start="${idx}">
+                <span class="sp-name">${s.name}</span>
+                <span class="sp-when">${sessionWhen(s.start)}</span>
+              </button>`;
+          })
+          .join("");
+
+        // "To" options: "Now (excl. current)" then earlier close points (index 2..si).
+        let toChips = `
+          <button class="sess-pick ${isRange && state.sessionEndIdx == null ? "active" : ""}" data-sess-end="now">
+            <span class="sp-name">Now</span>
+            <span class="sp-when">excl. current</span>
+          </button>`;
+        for (let idx = 2; idx <= si; idx++) {
+          const s = sessions[idx];
+          const active = isRange && state.sessionEndIdx === idx;
+          toChips += `
+            <button class="sess-pick ${active ? "active" : ""}" data-sess-end="${idx}">
+              <span class="sp-name">end ${s.name}</span>
+              <span class="sp-when">${sessionWhen(s.end)}</span>
+            </button>`;
+        }
+
+        return `
+          <div class="session-block">
+            <div class="session-quick" role="group" aria-label="Quick session windows">
+              <button class="sess-chip ${state.sessionQuick === "current" ? "active" : ""}" data-sess-quick="current">Current session</button>
+              <button class="sess-chip ${state.sessionQuick === "prev4h" ? "active" : ""}" data-sess-quick="prev4h">Prev 4h</button>
+            </div>
+            <div class="sess-row">
+              <span class="sess-label">From</span>
+              <div class="selector-group sess-scroll" role="group" aria-label="Start session">${fromChips}</div>
+            </div>
+            <div class="sess-row">
+              <span class="sess-label">To</span>
+              <div class="selector-group sess-scroll" role="group" aria-label="End session">${toChips}</div>
+            </div>
+          </div>`;
+      }
+
       function render() {
         state.sessionLabel = getSessionLabel();
         const summary = computeSummary(state.profile, state.meta);
@@ -1164,16 +1429,19 @@
             </div>
             <div class="time-control">
               <div class="time-tabs" role="group" aria-label="Time input mode">
+                <button class="time-tab ${state.inputMode === "session" ? "active" : ""}" data-input-mode="session">Sessions</button>
                 <button class="time-tab ${state.inputMode === "duration" ? "active" : ""}" data-input-mode="duration">Duration</button>
                 <button class="time-tab ${state.inputMode === "time" ? "active" : ""}" data-input-mode="time">Time</button>
               </div>
+              ${state.inputMode === "session" ? renderSessionBlock() : ""}
               ${state.inputMode === "duration" ? `
               <div class="duration-row">
                 <button class="adj-btn" data-action="dur-minus">−</button>
                 <span class="dur-display">${formatDuration(state.durationMinutes)}</span>
                 <button class="adj-btn" data-action="dur-plus">+</button>
               </div>
-              ` : `
+              ` : ""}
+              ${state.inputMode === "time" ? `
               <div class="time-stepper-row">
                 <span class="stepper-label">Start</span>
                 <button class="adj-btn" data-action="start-minus">−</button>
@@ -1186,7 +1454,7 @@
                 <span class="dur-display">${state.manualEnd ?? "Now"}</span>
                 <button class="adj-btn" data-action="end-plus">+</button>
               </div>
-              `}
+              ` : ""}
             </div>
             <button class="refresh-button" data-action="refresh" ${state.loading ? "disabled" : ""}>${state.loading ? "Refreshing…" : "Refresh"}</button>
           </div>
@@ -1265,6 +1533,37 @@
               state.manualStart = `${String(h).padStart(2, "0")}:00`;
               state.manualEnd = null;
             }
+            render();
+            loadProfile();
+          });
+        });
+
+        app.querySelectorAll("[data-sess-quick]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.sessionQuick = btn.dataset.sessQuick;
+            render();
+            loadProfile();
+          });
+        });
+
+        app.querySelectorAll("[data-sess-start]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.sessionQuick = null; // switch to range mode
+            state.sessionStartIdx = parseInt(btn.dataset.sessStart, 10);
+            // Keep end valid: it must be <= start (an equal/earlier close point).
+            if (state.sessionEndIdx != null && state.sessionEndIdx > state.sessionStartIdx) {
+              state.sessionEndIdx = null;
+            }
+            render();
+            loadProfile();
+          });
+        });
+
+        app.querySelectorAll("[data-sess-end]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.sessionQuick = null; // switch to range mode
+            const val = btn.dataset.sessEnd;
+            state.sessionEndIdx = val === "now" ? null : parseInt(val, 10);
             render();
             loadProfile();
           });
