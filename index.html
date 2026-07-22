@@ -1046,75 +1046,119 @@
         return new Date(Date.UTC(y, mo - 1, d, hh - offsetHours, mm, 0, 0));
       }
 
-      // ---- Trading sessions (fixed UTC boundaries, 3 contiguous sessions/day) ----
-      // Asia 00:00–08:00, London 08:00–13:30, NY 13:30–24:00 (all UTC). Labels rendered in Stockholm time.
-      const SESSION_DEFS = [
-        { name: "Asia", startMin: 0 },
-        { name: "London", startMin: 8 * 60 },
-        { name: "NY", startMin: 13 * 60 + 30 },
-      ];
+      // ---- Trading sessions (canonical 6-session model, ET DST-safe) ----
+      // Source of truth: Docs-VSA-Trading-System / NT8 Docs-NT8/metadata/parameters.md
+      // "Sessions (ET, DST-safe)". Boundaries are ET wall-clock; the ecosystem labels
+      // sessions off America/New_York so they track US DST. Contiguous, cover 24h.
+      //   ASIAN 18:00–01:00 · PRE-LONDON 01:00–03:00 · LONDON 03:00–08:00
+      //   PRE-NY 08:00–09:30 · LON-NY 09:30–11:00 · NY 11:00–18:00   (all ET)
+      // ASIAN wraps past midnight, so an instant before 01:00 ET still belongs to the
+      // ASIAN session that started 18:00 ET the prior day.
       const SESSION_LOOKBACK = 8; // how many previous sessions to list
 
-      function sessionStartDate(baseDate, idx) {
-        const d = new Date(
-          Date.UTC(
-            baseDate.getUTCFullYear(),
-            baseDate.getUTCMonth(),
-            baseDate.getUTCDate(),
-            0,
-            0,
-            0,
-            0,
-          ),
-        );
-        d.setUTCMinutes(SESSION_DEFS[idx].startMin);
-        return d;
-      }
-
-      // Which session (name + start Date + index) contains a given instant.
-      function sessionInfoAt(date) {
-        const utcMin = date.getUTCHours() * 60 + date.getUTCMinutes();
-        let idx = 0;
-        for (let i = 0; i < SESSION_DEFS.length; i++) {
-          if (utcMin >= SESSION_DEFS[i].startMin) idx = i;
-        }
+      // Wall-clock parts of `date` in New York (ET), DST-aware.
+      function etParts(date) {
+        const p = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          hour12: false,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+          .formatToParts(date)
+          .reduce((a, x) => ((a[x.type] = x.value), a), {});
         return {
-          name: SESSION_DEFS[idx].name,
-          start: sessionStartDate(date, idx),
-          idx,
+          y: +p.year,
+          mo: +p.month,
+          d: +p.day,
+          hh: +p.hour % 24, // some engines emit "24" at midnight
+          mm: +p.minute,
         };
       }
 
-      function prevSessionInfo(info) {
-        const prevIdx =
-          (info.idx - 1 + SESSION_DEFS.length) % SESSION_DEFS.length;
-        const base = new Date(info.start);
-        if (prevIdx === SESSION_DEFS.length - 1) {
-          base.setUTCDate(base.getUTCDate() - 1);
+      // Convert an ET wall-clock (y, mo, d, hh, mm) to the matching UTC instant, DST-safe.
+      function etWallToUTC(y, mo, d, hh, mm) {
+        const guess = Date.UTC(y, mo - 1, d, hh, mm);
+        const gp = etParts(new Date(guess));
+        const asUTC = Date.UTC(gp.y, gp.mo - 1, gp.d, gp.hh, gp.mm);
+        const offMin = (asUTC - guess) / 60000; // minutes ET is offset from UTC (negative)
+        return new Date(guess - offMin * 60000);
+      }
+
+      // The session (name + UTC start) that contains a given instant.
+      function sessionStartFor(instant) {
+        const p = etParts(instant);
+        const etMin = p.hh * 60 + p.mm;
+        let name,
+          sh,
+          sm,
+          dayShift = 0;
+        if (etMin >= 18 * 60) {
+          name = "ASIAN";
+          sh = 18;
+          sm = 0;
+        } else if (etMin >= 11 * 60) {
+          name = "NY";
+          sh = 11;
+          sm = 0;
+        } else if (etMin >= 9 * 60 + 30) {
+          name = "LON-NY";
+          sh = 9;
+          sm = 30;
+        } else if (etMin >= 8 * 60) {
+          name = "PRE-NY";
+          sh = 8;
+          sm = 0;
+        } else if (etMin >= 3 * 60) {
+          name = "LONDON";
+          sh = 3;
+          sm = 0;
+        } else if (etMin >= 1 * 60) {
+          name = "PRE-LONDON";
+          sh = 1;
+          sm = 0;
+        } else {
+          // before 01:00 ET → ASIAN that opened 18:00 ET the previous ET day
+          name = "ASIAN";
+          sh = 18;
+          sm = 0;
+          dayShift = -1;
         }
-        return {
-          name: SESSION_DEFS[prevIdx].name,
-          start: sessionStartDate(base, prevIdx),
-          idx: prevIdx,
-        };
+        let y = p.y,
+          mo = p.mo,
+          d = p.d;
+        if (dayShift) {
+          const dd = new Date(Date.UTC(y, mo - 1, d));
+          dd.setUTCDate(dd.getUTCDate() + dayShift);
+          y = dd.getUTCFullYear();
+          mo = dd.getUTCMonth() + 1;
+          d = dd.getUTCDate();
+        }
+        return { name, start: etWallToUTC(y, mo, d, sh, sm) };
+      }
+
+      // Previous session = the one containing the instant one minute before this start.
+      function prevSessionStart(startDate) {
+        return sessionStartFor(new Date(startDate.getTime() - 60000));
       }
 
       // Ordered list: index 0 = current (in-progress) session, 1 = most recent
       // completed session, ... Each entry carries start + end (next session's start).
       function buildSessions(count) {
         const list = [];
-        let info = sessionInfoAt(new Date());
-        let next = null; // start of the following session
+        let cur = sessionStartFor(new Date());
+        let end = new Date(); // current session's "end" is now
         for (let i = 0; i <= count; i++) {
-          const entry = {
-            name: info.name,
-            start: info.start,
-            end: next || new Date(), // current session's "end" is now
+          list.push({
+            name: cur.name,
+            start: cur.start,
+            end,
             isCurrent: i === 0,
-          };
-          list.push(entry);
-          next = info.start;
-          info = prevSessionInfo(info);
+          });
+          end = cur.start; // the previous session ends where this one starts
+          cur = prevSessionStart(cur.start);
         }
         return list;
       }
